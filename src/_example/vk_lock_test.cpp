@@ -102,7 +102,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t lock
     Program tasProgram = Program(device, tasSpvCode, buffers);
     tasProgram.setWorkgroups(workgroups);
     tasProgram.setWorkgroupSize(workgroup_size);
-    tasProgram.prepare();
+    tasProgram.prepare("lock_test");
 
     float tas_test_total_time = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -158,7 +158,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t lock
     Program ttasProgram = Program(device, ttasSpvCode, buffers);
     ttasProgram.setWorkgroups(workgroups);
     ttasProgram.setWorkgroupSize(workgroup_size);
-    ttasProgram.prepare();
+    ttasProgram.prepare("lock_test");
 
     float ttas_test_total_time = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -214,7 +214,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t lock
     Program casProgram = Program(device, casSpvCode, buffers);
     casProgram.setWorkgroups(workgroups);
     casProgram.setWorkgroupSize(workgroup_size);
-    casProgram.prepare();
+    casProgram.prepare("lock_test");
 
     float cas_test_total_time = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -302,7 +302,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t lock
 }
 
 extern "C" char* run_default() {
-    return run(8, 16, 2000, 16);
+    return run(8, 16, 1000, 16);
 }
 
 int main() {
