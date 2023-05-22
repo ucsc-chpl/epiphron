@@ -66,8 +66,9 @@ void log(const char* fmt, ...) {
 extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padding, uint32_t contention, uint32_t rmw_iters, uint32_t test_iters) {
     log("Initializing test...\n");
 
-    Instance instance = Instance(false);
-    Device device = instance.devices().at(0);
+    auto instance = easyvk::Instance(true);
+	auto physicalDevices = instance.physicalDevices();
+	auto device = easyvk::Device(instance, physicalDevices.at(0));
 
     log("Using device '%s'\n", device.properties.deviceName);
 
@@ -105,7 +106,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     Program casProgram = Program(device, casSpvCode, buffers);
     casProgram.setWorkgroups(workgroups);
     casProgram.setWorkgroupSize(workgroup_size);
-    casProgram.prepare("rmw_test");
+    casProgram.initialize("rmw_test");
   
     float cas_rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -132,7 +133,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     Program exProgram = Program(device, exSpvCode, buffers);
     exProgram.setWorkgroups(workgroups);
     exProgram.setWorkgroupSize(workgroup_size);
-    exProgram.prepare("rmw_test");
+    exProgram.initialize("rmw_test");
   
     float ex_rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -159,7 +160,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     Program faProgram = Program(device, faSpvCode, buffers);
     faProgram.setWorkgroups(workgroups);
     faProgram.setWorkgroupSize(workgroup_size);
-    faProgram.prepare("rmw_test");
+    faProgram.initialize("rmw_test");
   
     float fa_rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -186,7 +187,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     Program lsProgram = Program(device, lsSpvCode, buffers);
     lsProgram.setWorkgroups(workgroups);
     lsProgram.setWorkgroupSize(workgroup_size);
-    lsProgram.prepare("rmw_test");
+    lsProgram.initialize("rmw_test");
   
     float ls_rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
@@ -244,8 +245,11 @@ extern "C" char* run_default() {
     uint32_t workgroup_size = 32;
     uint32_t padding = 16;
     uint32_t contention = 8;
-    uint32_t rmw_iters = 1000; 
-    uint32_t test_iters = 64;
+    uint32_t rmw_iters = 1000; //20k
+    uint32_t test_iters = 64; //1024
+    // programmatically change contention/padding
+    //heatmap, ypadding, xcontention
+    //spit out csv of timings
     return run(workgroups, workgroup_size, padding, contention, rmw_iters, test_iters);
 }
 
