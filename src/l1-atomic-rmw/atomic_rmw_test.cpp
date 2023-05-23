@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <string>
 #include <chrono>
+#include <list>
 
 #include "easyvk.h"
 #include "../_example/json.h"
@@ -11,6 +12,7 @@
 #define APPNAME "GPULockTests"
 #endif
 
+using std::list;
 using std::vector;
 using std::runtime_error;
 using std::string;
@@ -240,19 +242,47 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     return json_cstring;
 }
 
-extern "C" char* run_default() {
+extern "C" char* run_default(uint32_t padding, uint32_t contention) {
     uint32_t workgroups = 8;
     uint32_t workgroup_size = 32;
-    uint32_t padding = 16;
-    uint32_t contention = 8;
-    uint32_t rmw_iters = 4096;
+    uint32_t rmw_iters = 2048;
     uint32_t test_iters = 128;
+    // programmatically change contention/padding
+    //heatmap, ypadding, xcontention
+    //spit out csv of timings
     return run(workgroups, workgroup_size, padding, contention, rmw_iters, test_iters);
 }
 
 int main() {
-    char* res = run_default();
-    log("%s\n", res);
+    uint32_t default_padding = 16;
+    uint32_t default_contention = 16;
+    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64};
+    char* res = NULL;
+
+    // CONTENTION VS THROUGHPUT
+    log("--------------------------------------------------------------------------------------------------------------------\n");
+    log("CONTENTION VS THROUGHPUT, PADDING = %d\n", default_padding);
+
+     for (const auto& contention : test_values) {
+        log("CONTENTION = %d\n\n", contention);
+        res = run_default(default_padding, contention);
+        log("%s\n", res);
+    }
+
+    // PADDING VS THROUGHPUT
+    log("--------------------------------------------------------------------------------------------------------------------\n");
+    log("PADDING VS THROUGHPUT, CONTENTION = %d\n", default_contention);
+
+    for (const auto& padding : test_values) {
+        log("PADDING = %d\n\n", padding);
+        res = run_default(padding, default_contention);
+        log("%s\n", res);
+    }
+
+    log("--------------------------------------------------------------------------------------------------------------------\n");
+
+
+
     delete[] res;
     return 0;
 }
