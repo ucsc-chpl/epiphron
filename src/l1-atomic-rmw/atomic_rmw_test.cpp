@@ -245,11 +245,8 @@ extern "C" char* run_default() {
     uint32_t workgroup_size = 32;
     uint32_t padding = 16;
     uint32_t contention = 8;
-    uint32_t rmw_iters = 1000; //20k
-    uint32_t test_iters = 64; //1024
-    // programmatically change contention/padding
-    //heatmap, ypadding, xcontention
-    //spit out csv of timings
+    uint32_t rmw_iters = 4096;
+    uint32_t test_iters = 128;
     return run(workgroups, workgroup_size, padding, contention, rmw_iters, test_iters);
 }
 
