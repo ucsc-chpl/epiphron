@@ -5,7 +5,7 @@ all: easyvk kernel_launch_test
 easyvk:
 	make -C ../../easyvk
 
-kernel_launch_test: kernel_launch_test.cpp vect-add.spv vect-add.cinit empty-kernel.spv empty-kernel.cinit loop-test.spv loop-test.cinit
+kernel_launch_test: kernel_launch_test.cpp vect-add.spv vect-add.cinit empty-kernel.spv empty-kernel.cinit loop-test.spv loop-test.cinit vect-add-fixed-dispatch.spv vect-add-fixed-dispatch.cinit
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o kernel_launch_test.cpp -lvulkan -o kernel_launch_test.run
 
 %.spv: %.cl
