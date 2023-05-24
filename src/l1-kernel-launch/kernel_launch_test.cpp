@@ -1,11 +1,44 @@
 #include <vector>
 #include <iostream>
+#include <cmath>
 #include <easyvk.h>
 #include <cassert>
 #include <vector>
 #include <chrono>
+#include "json.h"
 
+using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
+
+#define DATA_DIR "/home/ssiddens/ucsc-chpl/epiphron-master/src/l1-kernel-launch/data"
+
+double calculate_average(const std::vector<double>& values) {
+    double sum = 0.0;
+    int numElements = values.size();
+
+    // Calculate the sum of all elements
+    for (const double& value : values) {
+        sum += value;
+    }
+
+    // Calculate and return the average
+    return numElements > 0 ? sum / numElements : 0.0;
+}
+
+double calculate_std_dev(const std::vector<double>& values) {
+    double mean = calculate_average(values);
+    double squaredDifferenceSum = 0.0;
+    int numElements = values.size();
+
+    // Calculate the sum of squared differences from the mean
+    for (const double& value : values) {
+        double difference = value - mean;
+        squaredDifferenceSum += difference * difference;
+    }
+
+    // Calculate and return the standard deviation
+    return numElements > 0 ? std::sqrt(squaredDifferenceSum / numElements) : 0.0;
+}
 
 void run_loop_test(easyvk::Device device) {
 	std::cout << "Running loop test...\n";
@@ -42,7 +75,7 @@ void run_loop_test(easyvk::Device device) {
 		program.setWorkgroupSize(1);
 
 		// Run the kernel.
-		program.prepare(entryPoint);
+		program.initialize(entryPoint);
 
 		double totalOverhead = 0.0;
 		auto totalGpuTime = 0;
@@ -98,7 +131,7 @@ void run_empty_kernel_test(easyvk::Device device) {
 		program.setWorkgroupSize(1);
 
 		// Run the kernel.
-		program.prepare(entryPoint);
+		program.initialize(entryPoint);
 
 		double totalOverhead = 0.0;
 		auto totalGpuTime = 0;
@@ -130,18 +163,17 @@ void run_empty_kernel_test(easyvk::Device device) {
 }
 
 
-void run_vect_add_test(easyvk::Device device) {
+ordered_json run_vect_add_test(easyvk::Device device, size_t numTrialsPerTest, size_t maxKernelWorkload) {
+	// Save results to JSON
+	std::vector<ordered_json> testData;
+
 	std::vector<uint32_t> spvCode =
 	#include "vect-add.cinit"
-	;	
+	;
 	const char *entryPoint = "litmus_test";
 
-	auto numTrialsPerTest = 64;
-	auto maxKernelWorkload = 16;
 	// Measure overhead with variety of kernel workloads.
-	for (int n = 2; n <= maxKernelWorkload; n *= 2) {
-		std::cout << "Vector size: " << n << "\n";
-
+	for (int n = 16; n <= maxKernelWorkload; n *= 2) {
 		// Create GPU buffers.
 		auto a = easyvk::Buffer(device, n);
 		auto b = easyvk::Buffer(device, n);
@@ -161,28 +193,30 @@ void run_vect_add_test(easyvk::Device device) {
 		program.setWorkgroupSize(1);
 
 		// Run the kernel.
-		program.prepare(entryPoint);
+		program.initialize(entryPoint);
 
 		double totalOverhead = 0.0;
 		auto totalGpuTime = 0;
 		auto totalCpuTime = 0;
-		for (auto _ = 0; _ < numTrialsPerTest; _++) {
+		std::vector<double> cpuTimes(numTrialsPerTest);
+		std::vector<double> gpuTimes(numTrialsPerTest);
+		std::vector<double> utilizationData(numTrialsPerTest);
+		for (auto i = 0; i < numTrialsPerTest; i++) {
 			auto startTime = high_resolution_clock::now();
 			auto gpuTime = program.runWithDispatchTiming();
 			auto cpuTime = duration_cast<microseconds>(high_resolution_clock::now() - startTime).count();
-			totalGpuTime += gpuTime;
-			totalCpuTime += cpuTime;
-			totalOverhead += ((gpuTime / (double)1000.0) / cpuTime);
+			cpuTimes[i] = cpuTime;
+			gpuTimes[i] = gpuTime;
+			utilizationData[i] = (gpuTime / (double)1000.0) / cpuTime;
 		}
 
 
-		auto avgGpuTimeInMicroseconds = (totalGpuTime / (double)numTrialsPerTest) / 1000.0;
-		std::cout << "Average GPU time: " << avgGpuTimeInMicroseconds << "us" << std::endl;
-		auto avgCpuTimeInMicroseconds = totalCpuTime / (double)numTrialsPerTest;
-		std::cout << "Average CPU time: " << avgCpuTimeInMicroseconds << "us" << std::endl;
+		auto avgGpuTimeInMicroseconds = calculate_average(gpuTimes) / 1000.0;
+		auto avgCpuTimeInMicroseconds = calculate_average(cpuTimes);
 
-		auto avgOverheadPerTrial = totalOverhead / (double)numTrialsPerTest;
-		std::cout << "Average overhead per trial: " <<  avgOverheadPerTrial << "\n\n";
+		// Calculate average utilization and std dev
+		auto avgUtilizationPerTrial = calculate_average(utilizationData);
+		auto stdDev = calculate_std_dev(utilizationData);
 
 		// Validate the output.
 		for (int i = 0; i < n; i++) {
@@ -195,13 +229,28 @@ void run_vect_add_test(easyvk::Device device) {
 		a.teardown();
 		b.teardown();
 		c.teardown();
+
+		// Save test results to JSON.
+		ordered_json res;
+		res["vecSize"] = n;
+		res["dispatchSize"] = n;
+		res["avgUtilPerTrial"] = avgUtilizationPerTrial;
+		res["stdDev"] = stdDev;
+		testData.emplace_back(res);
+
 	}
+
+	ordered_json vectAddResults;
+	vectAddResults["numTrialsPerTest"] = numTrialsPerTest;
+	vectAddResults["results"] = testData;
+	return vectAddResults;
 }
 
 int main(int argc, char* argv[]) {
 	// Initialize 
 	auto instance = easyvk::Instance(true);
-	auto device = instance.devices().at(0);
+	auto physicalDevices = instance.physicalDevices();
+	auto device = easyvk::Device(instance, physicalDevices.at(0));
 	std::cout << "Using device: " << device.properties.deviceName << "\n";
 	auto maxWrkGrpCount = device.properties.limits.maxComputeWorkGroupCount;
 	std::printf(
@@ -211,10 +260,28 @@ int main(int argc, char* argv[]) {
 		maxWrkGrpCount[2]
 	);
 
-	// run_vect_add_test(device);
-	// run_empty_kernel_test(device);
-	run_loop_test(device);
+	// Save test results to JSON.
+	ordered_json testResults;
+	testResults["testName"] = "Kernel Launch";
+	testResults["physicalDevice"] = device.properties.deviceName;
 
+	// Run vector addition test.
+	auto vectAddResults = run_vect_add_test(device, 64, 1024 * 1024);
+	testResults["vectorAddResults"] = vectAddResults;
+
+	// Write results to file.
+	std::ofstream outFile(std::string(DATA_DIR) + std::string("/results.json"));
+	if (outFile.is_open()) {
+		outFile << testResults.dump(4) << std::endl;
+		outFile.close();
+	} else {
+		std::cerr << "Failed to write test results to file!\n";
+	}
+
+	// run_empty_kernel_test(device);
+	// run_loop_test(device);
+
+	// Cleanup.
 	device.teardown();
 	instance.teardown();
 	return 0;
