@@ -1,0 +1,111 @@
+{
+    "testName": "Kernel Launch",
+    "physicalDevice": "Quadro RTX 4000",
+    "vectorAddResults": {
+        "numTrialsPerTest": 64,
+        "results": [
+            {
+                "vecSize": 16,
+                "dispatchSize": 16,
+                "avgUtilPerTrial": 0.0976871091972461,
+                "stdDev": 0.0266739945384054
+            },
+            {
+                "vecSize": 32,
+                "dispatchSize": 32,
+                "avgUtilPerTrial": 0.10143973109905526,
+                "stdDev": 0.025572536166458798
+            },
+            {
+                "vecSize": 64,
+                "dispatchSize": 64,
+                "avgUtilPerTrial": 0.09536685627587436,
+                "stdDev": 0.026442448403348584
+            },
+            {
+                "vecSize": 128,
+                "dispatchSize": 128,
+                "avgUtilPerTrial": 0.10420874692612564,
+                "stdDev": 0.019627408469208293
+            },
+            {
+                "vecSize": 256,
+                "dispatchSize": 256,
+                "avgUtilPerTrial": 0.11259352269383707,
+                "stdDev": 0.024012443938313126
+            },
+            {
+                "vecSize": 512,
+                "dispatchSize": 512,
+                "avgUtilPerTrial": 0.13094896638615722,
+                "stdDev": 0.0319070050233532
+            },
+            {
+                "vecSize": 1024,
+                "dispatchSize": 1024,
+                "avgUtilPerTrial": 0.17753797541461538,
+                "stdDev": 0.02886294240031252
+            },
+            {
+                "vecSize": 2048,
+                "dispatchSize": 2048,
+                "avgUtilPerTrial": 0.2379720342576772,
+                "stdDev": 0.05719930945360706
+            },
+            {
+                "vecSize": 4096,
+                "dispatchSize": 4096,
+                "avgUtilPerTrial": 0.31396951999402334,
+                "stdDev": 0.06874187427910104
+            },
+            {
+                "vecSize": 8192,
+                "dispatchSize": 8192,
+                "avgUtilPerTrial": 0.34730130671508364,
+                "stdDev": 0.06062254489973095
+            },
+            {
+                "vecSize": 16384,
+                "dispatchSize": 16384,
+                "avgUtilPerTrial": 0.4783643003102285,
+                "stdDev": 0.06327856515523347
+            },
+            {
+                "vecSize": 32768,
+                "dispatchSize": 32768,
+                "avgUtilPerTrial": 0.5608688435304491,
+                "stdDev": 0.028252357078942088
+            },
+            {
+                "vecSize": 65536,
+                "dispatchSize": 65536,
+                "avgUtilPerTrial": 0.7239802382175146,
+                "stdDev": 0.027298939488851152
+            },
+            {
+                "vecSize": 131072,
+                "dispatchSize": 131072,
+                "avgUtilPerTrial": 0.810007157775153,
+                "stdDev": 0.04317249969080253
+            },
+            {
+                "vecSize": 262144,
+                "dispatchSize": 262144,
+                "avgUtilPerTrial": 0.9069493965544261,
+                "stdDev": 0.0062849786438289226
+            },
+            {
+                "vecSize": 524288,
+                "dispatchSize": 524288,
+                "avgUtilPerTrial": 0.9470731452569618,
+                "stdDev": 0.047619085762941146
+            },
+            {
+                "vecSize": 1048576,
+                "dispatchSize": 1048576,
+                "avgUtilPerTrial": 0.9716998496472161,
+                "stdDev": 0.02447410106721854
+            }
+        ]
+    }
+}
