@@ -66,16 +66,16 @@ void log(const char* fmt, ...) {
 }
 
 extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padding, uint32_t contention, uint32_t rmw_iters, uint32_t test_iters) {
-    log("Initializing test...\n");
+    //log("Initializing test...\n");
 
     auto instance = easyvk::Instance(true);
 	auto physicalDevices = instance.physicalDevices();
 	auto device = easyvk::Device(instance, physicalDevices.at(0));
 
-    log("Using device '%s'\n", device.properties.deviceName);
+    //log("Using device '%s'\n", device.properties.deviceName);
 
     uint32_t maxComputeWorkGroupInvocations = device.properties.limits.maxComputeWorkGroupInvocations;
-    log("MaxComputeWorkGroupInvocations: %d\n", maxComputeWorkGroupInvocations);
+    //log("MaxComputeWorkGroupInvocations: %d\n", maxComputeWorkGroupInvocations);
     if (workgroups > maxComputeWorkGroupInvocations)
         workgroups = maxComputeWorkGroupInvocations;
 
@@ -87,22 +87,24 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     Buffer resultBuf = Buffer(device, size);
     Buffer rmwItersBuf = Buffer(device, 1);
     Buffer paddingBuf = Buffer(device, 1);
+    Buffer contentionBuf = Buffer(device, 1);
     Buffer sizeBuf = Buffer(device, 1);
     Buffer garbageBuf = Buffer(device, workgroups * workgroup_size);
-    vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, sizeBuf, garbageBuf };
+    vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
     rmwItersBuf.store(0, rmw_iters);
     paddingBuf.store(0, padding);
+    contentionBuf.store(0, contention);
     sizeBuf.store(0, size);
 
-    log("%d workgroups\n%d threads per workgroup\n%d rmw accesses per thread\ntests run %d times\ncontention at %d\npadding at %d\n", 
-    workgroups, workgroup_size, rmw_iters, test_iters, contention, padding);
+    //log("%d workgroups\n%d threads per workgroup\n%d rmw accesses per thread\ntests run %d times\ncontention at %d\npadding at %d\n", 
+    //workgroups, workgroup_size, rmw_iters, test_iters, contention, padding);
 
-    // -------------- ATOMIC CAS --------------
+    // -------------- ATOMIC CAS SUCCEED STORE --------------
 
     log("----------------------------------------------------------\n");
-    log("Testing Atomic Compare and Swap...\n");
+    log("Testing Atomic Compare and Swap SUCCEED-STORE...\n");
     vector<uint32_t> casSpvCode =
-    #include "atomic_cas.cinit"
+    #include "atomic_cas_succeed_store.cinit"
     ;
 
     Program casProgram = Program(device, casSpvCode, buffers);
@@ -123,6 +125,61 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     }
     cas_rate /= float(test_iters);
     log("\nAvg rate of operations per ms over %d tests: %f\n", cas_rate, test_iters);
+    log("%f\n", cas_rate);
+
+    // -------------- ATOMIC CAS SUCCEED NO STORE --------------
+
+    log("----------------------------------------------------------\n");
+    log("Testing Atomic Compare and Swap SUCCEED-NO-STORE...\n");
+    vector<uint32_t> cas2SpvCode =
+    #include "atomic_cas_succeed_no_store.cinit"
+    ;
+
+    Program cas2Program = Program(device, cas2SpvCode, buffers);
+    cas2Program.setWorkgroups(workgroups);
+    cas2Program.setWorkgroupSize(workgroup_size);
+    cas2Program.initialize("rmw_test");
+  
+    float cas2_rate = 0.0;
+    for (int i = 1; i <= test_iters; i++) {
+        resultBuf.clear();
+        auto start = high_resolution_clock::now();
+        cas2Program.run();
+        auto stop = high_resolution_clock::now();
+        auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
+        auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
+        auto duration = s2 - s1;
+        cas2_rate += (float(rmw_iters) / static_cast<float>(duration));
+    }
+    cas2_rate /= float(test_iters);
+    log("\nAvg rate of operations per ms over %d tests: %f\n", cas2_rate, test_iters);
+
+    // -------------- ATOMIC CAS FAIL NO STORE --------------
+
+    log("----------------------------------------------------------\n");
+    log("Testing Atomic Compare and Swap FAIL-NO-STORE...\n");
+    vector<uint32_t> cas3SpvCode =
+    #include "atomic_cas_fail_no_store.cinit"
+    ;
+
+    Program cas3Program = Program(device, cas3SpvCode, buffers);
+    cas3Program.setWorkgroups(workgroups);
+    cas3Program.setWorkgroupSize(workgroup_size);
+    cas3Program.initialize("rmw_test");
+  
+    float cas3_rate = 0.0;
+    for (int i = 1; i <= test_iters; i++) {
+        resultBuf.clear();
+        auto start = high_resolution_clock::now();
+        cas3Program.run();
+        auto stop = high_resolution_clock::now();
+        auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
+        auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
+        auto duration = s2 - s1;
+        cas3_rate += (float(rmw_iters) / static_cast<float>(duration));
+    }
+    cas3_rate /= float(test_iters);
+    log("\nAvg rate of operations per ms over %d tests: %f\n", cas3_rate, test_iters);
 
     // -------------- ATOMIC EX --------------
 
@@ -151,7 +208,34 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     ex_rate /= float(test_iters);
     log("\nAvg rate of operations per ms over %d tests: %f\n", ex_rate, test_iters);
 
-    // -------------- ATOMIC FA --------------
+    // -------------- ATOMIC EX RELAXED --------------
+
+    log("----------------------------------------------------------\n");
+    log("Testing Atomic Exchange RELAXED...\n");
+    vector<uint32_t> ex2SpvCode =
+    #include "atomic_ex_relaxed.cinit"
+    ;
+
+    Program ex2Program = Program(device, ex2SpvCode, buffers);
+    ex2Program.setWorkgroups(workgroups);
+    ex2Program.setWorkgroupSize(workgroup_size);
+    ex2Program.initialize("rmw_test");
+  
+    float ex2_rate = 0.0;
+    for (int i = 1; i <= test_iters; i++) {
+        resultBuf.clear();
+        auto start = high_resolution_clock::now();
+        ex2Program.run();
+        auto stop = high_resolution_clock::now();
+        auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
+        auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
+        auto duration = s2 - s1;
+        ex2_rate += (float(rmw_iters) / static_cast<float>(duration));
+    }
+    ex2_rate /= float(test_iters);
+    log("\nAvg rate of operations per ms over %d tests: %f\n", test_iters, ex2_rate);
+
+    //-------------- ATOMIC FA --------------
 
     log("----------------------------------------------------------\n");
     log("Testing Atomic Fetch Add...\n");
@@ -178,44 +262,48 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     fa_rate /= float(test_iters);
     log("\nAvg rate of operations per ms over %d tests: %f\n", fa_rate, test_iters);
 
-    // -------------- ATOMIC LS --------------
+    //-------------- ATOMIC FA RELAXED --------------
 
     log("----------------------------------------------------------\n");
-    log("Testing Atomic Load/Store...\n");
-    vector<uint32_t> lsSpvCode =
-    #include "atomic_ls.cinit"
+    log("Testing Atomic Fetch Add RELAXED...\n");
+    vector<uint32_t> fa2SpvCode =
+    #include "atomic_fa_relaxed.cinit"
     ;
 
-    Program lsProgram = Program(device, lsSpvCode, buffers);
-    lsProgram.setWorkgroups(workgroups);
-    lsProgram.setWorkgroupSize(workgroup_size);
-    lsProgram.initialize("rmw_test");
+    Program fa2Program = Program(device, fa2SpvCode, buffers);
+    fa2Program.setWorkgroups(workgroups);
+    fa2Program.setWorkgroupSize(workgroup_size);
+    fa2Program.initialize("rmw_test");
   
-    float ls_rate = 0.0;
+    float fa2_rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
         resultBuf.clear();
         auto start = high_resolution_clock::now();
-        lsProgram.run();
+        fa2Program.run();
         auto stop = high_resolution_clock::now();
         auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
         auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
         auto duration = s2 - s1;
-        ls_rate += (float(rmw_iters) / static_cast<float>(duration));
+        fa2_rate += (float(rmw_iters) / static_cast<float>(duration));
     }
-    ls_rate /= float(test_iters);
-    log("\nAvg rate of operations per ms over %d tests: %f\n", ls_rate, test_iters);
+    fa2_rate /= float(test_iters);
+    log("\nAvg rate of operations per ms over %d tests: %f\n", fa2_rate, test_iters);
 
     log("----------------------------------------------------------\n");
     log("Cleaning up...\n");
 
     casProgram.teardown();
+    cas2Program.teardown();
+    cas3Program.teardown();
     exProgram.teardown();
+    ex2Program.teardown();
     faProgram.teardown();
-    lsProgram.teardown();
+    fa2Program.teardown();
 
     resultBuf.teardown();
     rmwItersBuf.teardown();
     paddingBuf.teardown();
+    contentionBuf.teardown();
     sizeBuf.teardown();
     garbageBuf.teardown();
         
@@ -231,9 +319,12 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
         {"test-iters", test_iters},
         {"total-rmws", total_rmws},
         {"cas-rate", cas_rate},
+        {"cas2-rate", cas2_rate},
+        {"cas3-rate", cas3_rate},
         {"ex-rate", ex_rate},
+        {"ex2-rate", ex2_rate},
         {"fa-rate", fa_rate},
-        {"ls-rate", ls_rate},
+        {"fa2-rate", fa2_rate},
     };
 
     string json_string = result_json.dump();
@@ -242,44 +333,48 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     return json_cstring;
 }
 
-extern "C" char* run_default(uint32_t padding, uint32_t contention) {
+extern "C" char* run_default(uint32_t padding, uint32_t contention, uint32_t workgroup_size) {
     uint32_t workgroups = 8;
-    uint32_t workgroup_size = 32;
-    uint32_t rmw_iters = 4096;
+    uint32_t rmw_iters = 8192;
     uint32_t test_iters = 16;
     return run(workgroups, workgroup_size, padding, contention, rmw_iters, test_iters);
 }
 
 int main() {
-    uint32_t default_padding = 16;
-    uint32_t default_contention = 16;
-    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64};
+    uint32_t default_padding = 32;
+    uint32_t default_contention = 32;
+    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64, 128};
+    list<uint32_t> workgroup_size_values = {32, 64};
     char* res = NULL;
 
-    // CONTENTION VS THROUGHPUT
-    log("--------------------------------------------------------------------------------------------------------------------\n");
-    log("CONTENTION VS THROUGHPUT, PADDING = %d\n", default_padding);
+    // VARYING WORKGROUP SIZE
+    for (const auto& workgroup_size : workgroup_size_values) {
+        // CONTENTION VS THROUGHPUT
+        log("WORKGROUP_SIZE = %d\n", workgroup_size);
+        log("--------------------------------------------------------------------------------------------------------------------\n");
+        log("CONTENTION VS THROUGHPUT, PADDING = %d\n", default_padding);
 
-     for (const auto& contention : test_values) {
-        log("CONTENTION = %d\n\n", contention);
-        res = run_default(default_padding, contention);
-        log("%s\n", res);
+        for (const auto& contention : test_values) {
+            //log("CONTENTION = %d\n\n", contention);
+            res = run_default(default_padding, contention, workgroup_size);
+            //log("%s\n", res);
+        }
+
+        // PADDING VS THROUGHPUT
+        log("--------------------------------------------------------------------------------------------------------------------\n");
+        log("PADDING VS THROUGHPUT, CONTENTION = %d\n", default_contention);
+
+        for (const auto& padding : test_values) {
+            //log("PADDING = %d\n\n", padding);
+            res = run_default(padding, default_contention, workgroup_size);
+            //log("%s\n", res);
+        }
+
+        log("--------------------------------------------------------------------------------------------------------------------\n");
     }
 
-    // PADDING VS THROUGHPUT
-    log("--------------------------------------------------------------------------------------------------------------------\n");
-    log("PADDING VS THROUGHPUT, CONTENTION = %d\n", default_contention);
 
-    for (const auto& padding : test_values) {
-        log("PADDING = %d\n\n", padding);
-        res = run_default(padding, default_contention);
-        log("%s\n", res);
-    }
-
-    log("--------------------------------------------------------------------------------------------------------------------\n");
-
-
-
+    log("FINISHED TEST SUITES");
     delete[] res;
     return 0;
 }
