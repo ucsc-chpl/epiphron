@@ -3,6 +3,7 @@
 #include <string>
 #include <chrono>
 #include <list>
+#include <iostream>
 
 #include "easyvk.h"
 #include "../_example/json.h"
@@ -75,7 +76,8 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     //log("Using device '%s'\n", device.properties.deviceName);
 
     uint32_t maxComputeWorkGroupInvocations = device.properties.limits.maxComputeWorkGroupInvocations;
-    //log("MaxComputeWorkGroupInvocations: %d\n", maxComputeWorkGroupInvocations);
+    // workgroups = maxComputeWorkGroupInvocations/32
+    log("MaxComputeWorkGroupInvocations: %d\n", maxComputeWorkGroupInvocations);
     if (workgroups > maxComputeWorkGroupInvocations)
         workgroups = maxComputeWorkGroupInvocations;
 
@@ -83,6 +85,9 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     uint32_t total_rmws = test_total * test_iters;
 
     const int size = workgroup_size * padding / contention;
+    if (size < 1) {
+        return {};
+    }
     
     Buffer resultBuf = Buffer(device, size);
     Buffer rmwItersBuf = Buffer(device, 1);
@@ -96,6 +101,8 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     contentionBuf.store(0, contention);
     sizeBuf.store(0, size);
 
+    // add chunking v striding check to modify string, temp setup 
+
     //log("%d workgroups\n%d threads per workgroup\n%d rmw accesses per thread\ntests run %d times\ncontention at %d\npadding at %d\n", 
     //workgroups, workgroup_size, rmw_iters, test_iters, contention, padding);
 
@@ -104,7 +111,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Compare and Swap SUCCEED-STORE...\n");
     vector<uint32_t> casSpvCode =
-    #include "atomic_cas_succeed_store.cinit"
+    #include "chunking/atomic_cas_succeed_store.cinit"
     ;
 
     Program casProgram = Program(device, casSpvCode, buffers);
@@ -128,11 +135,11 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("%f\n", cas_rate);
 
     // -------------- ATOMIC CAS SUCCEED NO STORE --------------
-
+    
     log("----------------------------------------------------------\n");
     log("Testing Atomic Compare and Swap SUCCEED-NO-STORE...\n");
     vector<uint32_t> cas2SpvCode =
-    #include "atomic_cas_succeed_no_store.cinit"
+    #include "chunking/atomic_cas_succeed_no_store.cinit"
     ;
 
     Program cas2Program = Program(device, cas2SpvCode, buffers);
@@ -159,7 +166,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Compare and Swap FAIL-NO-STORE...\n");
     vector<uint32_t> cas3SpvCode =
-    #include "atomic_cas_fail_no_store.cinit"
+    #include "chunking/atomic_cas_fail_no_store.cinit"
     ;
 
     Program cas3Program = Program(device, cas3SpvCode, buffers);
@@ -186,7 +193,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Exchange...\n");
     vector<uint32_t> exSpvCode =
-    #include "atomic_ex.cinit"
+    #include "chunking/atomic_ex.cinit"
     ;
 
     Program exProgram = Program(device, exSpvCode, buffers);
@@ -213,7 +220,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Exchange RELAXED...\n");
     vector<uint32_t> ex2SpvCode =
-    #include "atomic_ex_relaxed.cinit"
+    #include "chunking/atomic_ex_relaxed.cinit"
     ;
 
     Program ex2Program = Program(device, ex2SpvCode, buffers);
@@ -240,7 +247,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Fetch Add...\n");
     vector<uint32_t> faSpvCode =
-    #include "atomic_fa.cinit"
+    #include "chunking/atomic_fa.cinit"
     ;
 
     Program faProgram = Program(device, faSpvCode, buffers);
@@ -267,7 +274,7 @@ extern "C" char* run(uint32_t workgroups, uint32_t workgroup_size, uint32_t padd
     log("----------------------------------------------------------\n");
     log("Testing Atomic Fetch Add RELAXED...\n");
     vector<uint32_t> fa2SpvCode =
-    #include "atomic_fa_relaxed.cinit"
+    #include "chunking/atomic_fa_relaxed.cinit"
     ;
 
     Program fa2Program = Program(device, fa2SpvCode, buffers);
@@ -341,35 +348,24 @@ extern "C" char* run_default(uint32_t padding, uint32_t contention, uint32_t wor
 }
 
 int main() {
-    uint32_t default_padding = 32;
-    uint32_t default_contention = 32;
-    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64, 128};
-    list<uint32_t> workgroup_size_values = {32, 64};
+    // Contention/Padding Values
+    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64, 128}; 
+    // Number of Threads
+    list<uint32_t> workgroup_size_values = {32}; 
     char* res = NULL;
-
-    // VARYING WORKGROUP SIZE
     for (const auto& workgroup_size : workgroup_size_values) {
-        // CONTENTION VS THROUGHPUT
         log("WORKGROUP_SIZE = %d\n", workgroup_size);
         log("--------------------------------------------------------------------------------------------------------------------\n");
-        log("CONTENTION VS THROUGHPUT, PADDING = %d\n", default_padding);
-
-        for (const auto& contention : test_values) {
-            //log("CONTENTION = %d\n\n", contention);
-            res = run_default(default_padding, contention, workgroup_size);
-            //log("%s\n", res);
+        for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
+            for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
+                uint32_t contention = *it1;
+                uint32_t padding = *it2;
+                log("CONTENTION = %d\tPADDING = %d\n", contention,padding);
+                res = run_default(padding, contention, workgroup_size);
+                //log("%s\n", res);
+            }
         }
-
-        // PADDING VS THROUGHPUT
-        log("--------------------------------------------------------------------------------------------------------------------\n");
-        log("PADDING VS THROUGHPUT, CONTENTION = %d\n", default_contention);
-
-        for (const auto& padding : test_values) {
-            //log("PADDING = %d\n\n", padding);
-            res = run_default(padding, default_contention, workgroup_size);
-            //log("%s\n", res);
-        }
-
+        // switch statement 
         log("--------------------------------------------------------------------------------------------------------------------\n");
     }
 
