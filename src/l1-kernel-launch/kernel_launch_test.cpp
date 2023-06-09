@@ -5,13 +5,11 @@
 #include <cassert>
 #include <vector>
 #include <chrono>
+#include <ctime>
 #include "json.h"
 
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
-
-// TODO: Don't do this.
-#define DATA_DIR "/home/ssiddens/ucsc-chpl/epiphron-master/src/l1-kernel-launch/data"
 
 double calculate_average(const std::vector<double>& values) {
     double sum = 0.0;
@@ -56,8 +54,6 @@ ordered_json run_vect_add_fixed_dispatch_test(easyvk::Device device, size_t numT
 
 	// Measure overhead with variety of kernel workloads.
 	for (int n = 16; n <= maxKernelWorkload; n *= 2) {
-		std::cout << "Kernel workload: " << n << "\n";
-		std::cout << "Vector size: " << n * dispatchSize << "\n\n";
 		// Create GPU buffers.
 		auto a = easyvk::Buffer(device, n * dispatchSize);
 		auto b = easyvk::Buffer(device, n * dispatchSize);
@@ -78,7 +74,7 @@ ordered_json run_vect_add_fixed_dispatch_test(easyvk::Device device, size_t numT
 		auto program = easyvk::Program(device, spvCode, bufs);
 
 		program.setWorkgroups(dispatchSize);
-		program.setWorkgroupSize(1);
+		program.setWorkgroupSize(32);
 
 		// Run the kernel.
 		program.initialize(entryPoint);
@@ -108,7 +104,6 @@ ordered_json run_vect_add_fixed_dispatch_test(easyvk::Device device, size_t numT
 
 		// Validate the output.
 		for (int i = 0; i < n * dispatchSize; i++) {
-			// std::cout << "c[" << i << "]: " << c.load(i) << "\n";
 			assert(c.load(i) == a.load(i) + b.load(i));
 		}
 
@@ -144,6 +139,8 @@ ordered_json run_vect_add_test(easyvk::Device device, size_t numTrialsPerTest, s
 	#include "build/vect-add.cinit"
 	;
 	const char *entryPoint = "litmus_test";
+
+	auto workgroupSize = 32;
 
 	// Measure overhead with variety of kernel workloads.
 	for (int n = 16; n <= maxKernelWorkload; n *= 2) {
@@ -224,17 +221,27 @@ int main(int argc, char* argv[]) {
 	auto instance = easyvk::Instance(true);
 	auto physicalDevices = instance.physicalDevices();
 
-	std::cout << physicalDevices.size() << "\n";
-
-	return 0;
+	// Select logical device.
 	auto device = easyvk::Device(instance, physicalDevices.at(0));
 	std::cout << "Using device: " << device.properties.deviceName << "\n";
-	auto maxWrkGrpCount = device.properties.limits.maxComputeWorkGroupCount;
+	auto maxWrkGrpInvocations = device.properties.limits.maxComputeWorkGroupInvocations;
+	auto maxWrkGroups = device.properties.limits.maxComputeWorkGroupCount;
+	auto maxWrkGrpSize = device.properties.limits. maxComputeWorkGroupSize;
 	std::printf(
-		"maxComputeWorkGroupCount: (%d, %d, %d)\n", 
-		maxWrkGrpCount[0], 
-		maxWrkGrpCount[1],
-		maxWrkGrpCount[2]
+		"maxComputeWorkgroupInvocations: %d\n", 
+		maxWrkGrpInvocations
+	);
+	std::printf(
+		"maxComputeWorkgroupCount: (%d, %d, %d)\n", 
+		maxWrkGroups[0],
+		maxWrkGroups[1],
+		maxWrkGroups[2]
+	);
+	std::printf(
+		"maxWorkGroupSize: (%d, %d, %d)\n", 
+		maxWrkGrpSize[0],
+		maxWrkGrpSize[1],
+		maxWrkGrpSize[2]
 	);
 
 	// Save test results to JSON.
@@ -246,24 +253,33 @@ int main(int argc, char* argv[]) {
 	testResults["driverVersion"] = device.properties.driverVersion;
 
 	// Run vector addition test.
+	std::cout << "Running vector addition test...\n";
 	auto vectAddResults = run_vect_add_test(device, 64, 1024 * 1024);
 	testResults["vectorAddResults"] = vectAddResults;
+	std::cout << "Done!\n";
 
 	// Run fixed dispatch vector addition test.
-	auto fixedDispatchVectAddResults = run_vect_add_fixed_dispatch_test(device, 16, 8);
+	std::cout << "Running fixed dispatch test...\n";
+	auto fixedDispatchVectAddResults = run_vect_add_fixed_dispatch_test(device, 64, 32);
 	testResults["vectorAddFixedDispatchResults"] = fixedDispatchVectAddResults;
+	std::cout << "Done!\n";
+
 
 	// Write results to file.
-	std::ofstream outFile(std::string(DATA_DIR) + std::string("/results.json"));
+	 // Get current time
+    std::time_t currentTime = std::time(nullptr);
+    std::tm* currentDateTime = std::localtime(&currentTime);
+
+    // Create file name using current time and date
+    char filename[100];
+	std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
+	std::ofstream outFile(std::string("data/") + std::string(filename));
 	if (outFile.is_open()) {
 		outFile << testResults.dump(4) << std::endl;
 		outFile.close();
 	} else {
 		std::cerr << "Failed to write test results to file!\n";
 	}
-
-	// run_empty_kernel_test(device);
-	// run_loop_test(device);
 
 	// Cleanup.
 	device.teardown();
