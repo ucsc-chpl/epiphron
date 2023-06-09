@@ -1,11 +1,12 @@
-#include <vector>
-#include <iostream>
-#include <cmath>
-#include <easyvk.h>
+#include <algorithm>
 #include <cassert>
-#include <vector>
 #include <chrono>
+#include <cmath>
 #include <ctime>
+#include <iostream>
+#include <vector>
+
+#include <easyvk.h>
 #include "json.h"
 
 using ordered_json = nlohmann::ordered_json;
@@ -30,7 +31,7 @@ void updateProgressBar(int progress, int total, int barWidth = 50) {
     std::cout << "] " << static_cast<int>(percentage * 100) << "%\r";
     std::cout.flush();
 
-	if (percentage == 1.0) {
+	if (percentage >= 1.0) {
 		std::cout << std::endl;
 	}
 }
@@ -63,10 +64,44 @@ double calculate_std_dev(const std::vector<double>& values) {
     return numElements > 0 ? std::sqrt(squaredDifferenceSum / numElements) : 0.0;
 }
 
-ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t numTrialsPerTest, size_t dispatchSize) {
-	auto workGroupSize = 32;
-	auto maxThreadWorkload = 1024 * 1024; // Maximum amount of work an individual thread will do.
-	auto maxVecSize = maxThreadWorkload / (dispatchSize * workGroupSize);
+/**
+ * Rounds a given size_t value up to the nearest power of 2.
+ *
+ * @param n The input value to be rounded.
+ * @return The rounded value, which is the nearest power of 2 greater than or equal to the input.
+ */
+size_t roundUpToPowerOf2(size_t n) {
+    if (n == 0)
+        return 1;
+
+    n--;
+    for (size_t i = 1; i < sizeof(size_t) * 8; i *= 2)
+        n |= n >> i;
+
+    return n + 1;
+}
+
+/**
+* @brief Runs the varied workload benchmark.
+* 
+* This benchmark measures kernel launch overhead of a vector addition kernel 
+* Every thread is assigned a chunk of the vector to operate on. This workload is parameterized.
+* WARNING: The maximum vector size that's passed to the kernel will be numWorkGroups * workGroupSize * maxThreadWorkload
+* 
+* @param device The easyvk::Device object for which to run the benchmark on // TODO: Change to a physical device index.
+* @param numTrialsPerTest Number of trials to run for each test.
+* @param numWorkGroups Number of workgroups to dispatch.
+* @param workGroupSize Size of the workgroups.
+* @param maxThreadWorkload Maximum chunk of the vector a kernel will be assigned to.
+* @return JSON object containing the benchmark results.
+*/	
+ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, 
+                                                   size_t numTrialsPerTest, 
+												   size_t numWorkGroups,
+												   size_t workGroupSize,
+												   size_t maxThreadWorkload) {
+	// Maximum vector size that will be passed to the kernel.
+	auto maxVecSize = maxThreadWorkload * numWorkGroups * workGroupSize;
 
 	// Save results to JSON
 	std::vector<ordered_json> testData;
@@ -78,14 +113,14 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 	const char *entryPoint = "test";
 
 	// Measure overhead with variety of kernel workloads.
-	for (int n = 16; n <= maxVecSize; n *= 2) {
+	for (int n = numWorkGroups * workGroupSize; n <= maxVecSize; n *= 2) {
 		// Create GPU buffers.
-		auto vecSize = n * dispatchSize * workGroupSize;
+		auto vecSize = n;
 		auto a = easyvk::Buffer(device, vecSize);
 		auto b = easyvk::Buffer(device, vecSize);
 		auto c = easyvk::Buffer(device, vecSize);
 		auto dispatchSizeBuf = easyvk::Buffer(device, 1);
-		dispatchSizeBuf.store(0, dispatchSize);
+		dispatchSizeBuf.store(0, numWorkGroups);
 		auto vecSizeBuf = easyvk::Buffer(device, 1);
 		vecSizeBuf.store(0, vecSize);
 
@@ -99,7 +134,7 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 
 		auto program = easyvk::Program(device, spvCode, bufs);
 
-		program.setWorkgroups(dispatchSize);
+		program.setWorkgroups(numWorkGroups);
 		program.setWorkgroupSize(workGroupSize);
 
 		// Run the kernel.
@@ -129,7 +164,7 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 		auto stdDev = calculate_std_dev(utilizationData);
 
 		// Validate the output.
-		for (int i = 0; i < n * dispatchSize; i++) {
+		for (int i = 0; i < vecSize; i++) {
 			assert(c.load(i) == a.load(i) + b.load(i));
 		}
 
@@ -141,8 +176,8 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 
 		// Save test results to JSON.
 		ordered_json res;
-		res["kernelWorkload"] = n;
-		res["vecSize"] = n * dispatchSize;
+		res["threadWorkload"] = vecSize / (workGroupSize * numWorkGroups);
+		res["vecSize"] = vecSize;
 		res["avgUtilPerTrial"] = avgUtilizationPerTrial;
 		res["stdDev"] = stdDev;
 		testData.emplace_back(res);
@@ -151,11 +186,12 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 	}
 
 	ordered_json vectAddResults;
-	vectAddResults["dispatchSize"] = dispatchSize;
+	vectAddResults["numWorkgroups"] = numWorkGroups;
 	vectAddResults["numTrialsPerTest"] = numTrialsPerTest;
 	vectAddResults["results"] = testData;
 	return vectAddResults;
 }
+
 
 
 /**
@@ -168,9 +204,13 @@ ordered_json run_vect_add_fixed_dispatch_benchmark(easyvk::Device device, size_t
 * @param device The easyvk::Device object for which to run the benchmark on // TODO: Change to a physical device index.
 * @param numTrialsPerTest Number of trials to run for each test.
 * @param maxWorkGroupInvocations Maximum number of workgroups that will be dispatched.
+* @param workGroupSize Size of the workgroups.
 * @return JSON object containing the benchmark results.
 */
-ordered_json run_vect_add_benchmark(easyvk::Device device, size_t numTrialsPerTest, size_t maxWorkGroupInvocations) {
+ordered_json run_vect_add_benchmark(easyvk::Device device, 
+                                   size_t numTrialsPerTest,
+								   size_t maxWorkGroupInvocations,
+								   size_t workGroupSize) {
 	// Save results to JSON
 	std::vector<ordered_json> testData;
 
@@ -181,8 +221,10 @@ ordered_json run_vect_add_benchmark(easyvk::Device device, size_t numTrialsPerTe
 	const char *entryPoint = "litmus_test";
 
 	// Measure overhead with variety of kernel workloads.
-	auto workGroupSize = 32;
-	for (int n = 1; n <= maxWorkGroupInvocations; n *= 2) {
+	for (int n = 1; n <= roundUpToPowerOf2(maxWorkGroupInvocations); n *= 2) {
+		// Ensure that n is less than or equal to maxWorkGroupInvocations
+		n = std::min((int) maxWorkGroupInvocations, n);
+
 		// Create GPU buffers.
 		auto kernelWorkloadSize = n * workGroupSize;
 		auto a = easyvk::Buffer(device, kernelWorkloadSize);
@@ -253,6 +295,7 @@ ordered_json run_vect_add_benchmark(easyvk::Device device, size_t numTrialsPerTe
 
 	ordered_json vectAddResults;
 	vectAddResults["numTrialsPerTest"] = numTrialsPerTest;
+	vectAddResults["workgroupSize"] = workGroupSize;
 	vectAddResults["results"] = testData;
 	return vectAddResults;
 }
@@ -293,15 +336,17 @@ int main(int argc, char* argv[]) {
 	testResults["deviceID"] = device.properties.deviceID;
 	testResults["driverVersion"] = device.properties.driverVersion;
 
+	auto numTrials = 8;
+
 	// Run vector addition test.
 	std::cout << "Running vector addition test...\n";
-	auto vectAddResults = run_vect_add_benchmark(device, 64, 1024);
+	auto vectAddResults = run_vect_add_benchmark(device, numTrials, maxWrkGroups[0], 32);
 	testResults["vectorAddResults"] = vectAddResults;
 	std::cout << "Done!\n";
 
 	// Run fixed dispatch vector addition test.
 	std::cout << "Running fixed dispatch test...\n";
-	auto fixedDispatchVectAddResults = run_vect_add_fixed_dispatch_benchmark(device, 64, 32);
+	auto fixedDispatchVectAddResults = run_vect_add_fixed_dispatch_benchmark(device, numTrials, 8, 32, 1024 * 8);
 	testResults["vectorAddFixedDispatchResults"] = fixedDispatchVectAddResults;
 	std::cout << "Done!\n";
 
