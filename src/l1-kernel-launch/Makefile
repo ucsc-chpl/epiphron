@@ -15,6 +15,7 @@ easyvk:
 	make -C ../../easyvk
 
 kernel_launch_test: kernel_launch_test.cpp $(SPVS) $(CINITS)
+	mkdir -p data
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o kernel_launch_test.cpp -lvulkan -o build/kernel_launch_test.run
 
 build/%.spv: %.cl
