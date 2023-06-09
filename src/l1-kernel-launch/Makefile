@@ -1,20 +1,27 @@
 CXXFLAGS = -std=c++17
 
-all: easyvk kernel_launch_test
+SHADERS = $(wildcard *.cl)
+SPVS = $(patsubst %.cl,build/%.spv,$(SHADERS))
+CINITS = $(patsubst %.cl,build/%.cinit,$(SHADERS))
+
+.PHONY: all build clean easyvk kernel_launch_test
+
+all: build easyvk kernel_launch_test
+
+build:
+	mkdir -p build
 
 easyvk:
 	make -C ../../easyvk
 
-kernel_launch_test: kernel_launch_test.cpp vect-add.spv vect-add.cinit empty-kernel.spv empty-kernel.cinit loop-test.spv loop-test.cinit vect-add-fixed-dispatch.spv vect-add-fixed-dispatch.cinit
-	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o kernel_launch_test.cpp -lvulkan -o kernel_launch_test.run
+kernel_launch_test: kernel_launch_test.cpp $(SPVS) $(CINITS)
+	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o kernel_launch_test.cpp -lvulkan -o build/kernel_launch_test.run
 
-%.spv: %.cl
+build/%.spv: %.cl
 	clspv -cl-std=CL2.0 -inline-entry-points $< -o $@
 
-%.cinit: %.cl
+build/%.cinit: %.cl
 	clspv -cl-std=CL2.0 -inline-entry-points -output-format=c $< -o $@
 
 clean:
-	rm *.run
-	rm *.cinit
-	rm *.spv
+	rm -rf build
