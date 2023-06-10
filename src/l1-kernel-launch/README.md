@@ -30,6 +30,22 @@ This benchmark runs a kernel which performs vector addition on two vectors.
 Workgroup size stays fixed, but the number of workgroups dispatched varies.
 The kernel is written so that every thread only operates on one element of the vector (thread workload remains fixed), so the vector size for a given run of the test is `num_workgroups` * `workgroup_size`.
 
+
+```C
+__kernel void varied_dispatch(__global uint *a, __global uint *b, __global uint *c) {
+	uint id = get_global_id(0);
+	c[id] = a[id] + b[id];
+}
+```
+
 ## Varied Thread Workload Benchmark
 
 This benchmark also runs a vector addition kernel, but the threads operate on fixed size chunks of the vector (instead of just a single element). This chunk size is parameterized as `threadWorkload` across the test, and `numWorkgroups` and `workgroupSize` remains fixed. For a given run of the test, the amount of work each thread is doing is `threadWorkload` and the total size of the vector being operated on is `threadWorkload` * `numWorkgroups` * `workgroupSize`.
+
+```C
+__kernel void varied_thread_workload(__global uint *a, __global uint *b, __global uint *c, __global uint *dispatchSizeBuf, __global uint *vecSize) {
+    for (uint i = get_global_id(0); i < vecSize[0]; i += dispatchSizeBuf[0]) {
+        c[i] = a[i] + b[i];
+    }
+}
+```
