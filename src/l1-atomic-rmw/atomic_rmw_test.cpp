@@ -152,7 +152,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             spv_code = getSPVCode(folder + "/atomic_fa.cinit");
             break;
         default:
-            return {};
+            return;
     }  
 
     // Contention/Padding Values
