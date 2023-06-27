@@ -5,6 +5,7 @@
 
 // TODO: Think about how to parameterize num workgroups.
 // Output of 3 benchmarks seem to be same when num workgroups is high??
+// TODO: Should we be doing more fine-grained timing? Like are we timing some overhead that we don't care about?
 
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
@@ -37,10 +38,21 @@ double calculate_std_dev(const std::vector<double>& values) {
     return numElements > 0 ? std::sqrt(squaredDifferenceSum / numElements) : 0.0;
 }
 
+std::vector<int> getWorkgroupSizes(size_t maxWorkgroupSize) {
+	// TODO: Try w/ smaller workgroup size vals
+	std::vector<int> workgroupSizes = {1};
+	for (int n = 32; n <= maxWorkgroupSize; n += 32) {
+		workgroupSizes.emplace_back(n);
+	}
+
+	return workgroupSizes;
+}
+
 ordered_json no_barrier_benchmark(easyvk::Instance instance, 
 								  size_t deviceIndex, 
 								  size_t numTrials,
-								  size_t numWorkgroups) {
+								  size_t numWorkgroups,
+								  size_t numIters) {
 	// Select device to use.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 	auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
@@ -58,15 +70,11 @@ ordered_json no_barrier_benchmark(easyvk::Instance instance,
 
 	const char *entryPoint = "benchmark";
 
-	std::vector<int> workgroupSizes = {1, 2, 8, 16};
-	for (int n = 32; n <= maxWorkgroupSize; n += 32) {
-		workgroupSizes.emplace_back(n);
-	}
+	auto workgroupSizes = getWorkgroupSizes(maxWorkgroupSize);
 
 	for (const auto& n : workgroupSizes) {
 		// Set up kernel inputs.
 		auto bufSize =  n * numWorkgroups;
-		auto numIters = 1024;
 		auto buf = easyvk::Buffer(device, bufSize);
 		auto buf_size = easyvk::Buffer(device, 1);
 		auto num_iters = easyvk::Buffer(device, 1);
@@ -121,7 +129,8 @@ ordered_json no_barrier_benchmark(easyvk::Instance instance,
 ordered_json workgroup_barrier_local_benchmark(easyvk::Instance instance,
                                                size_t deviceIndex,
 											   size_t numTrials,
-											   size_t numWorkgroups) {
+											   size_t numWorkgroups, 
+											   size_t numIters) {
 	// Select device to use from the provided device index.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 	auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
@@ -139,15 +148,11 @@ ordered_json workgroup_barrier_local_benchmark(easyvk::Instance instance,
 
 	const char *entryPoint = "benchmark";
 
-	std::vector<int> workgroupSizes = {1, 2, 8, 16};
-	for (int n = 32; n <= maxWorkgroupSize; n += 32) {
-		workgroupSizes.emplace_back(n);
-	}
+	auto workgroupSizes = getWorkgroupSizes(maxWorkgroupSize);
 
 	for (const auto& n : workgroupSizes) {
 		// Set up kernel inputs.
 		auto bufSize =  n * numWorkgroups;
-		auto numIters = 1024;
 		auto buf = easyvk::Buffer(device, bufSize);
 		auto buf_size = easyvk::Buffer(device, 1);
 		auto num_iters = easyvk::Buffer(device, 1);
@@ -201,7 +206,8 @@ ordered_json workgroup_barrier_local_benchmark(easyvk::Instance instance,
 ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
                                                 size_t deviceIndex,
 											    size_t numTrials,
-												size_t numWorkgroups) {
+												size_t numWorkgroups,
+												size_t numIters) {
 	// Select device to use from the provided device index.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 	auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
@@ -219,15 +225,11 @@ ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
 
 	const char *entryPoint = "benchmark";
 
-	std::vector<int> workgroupSizes = {1, 2, 8, 16};
-	for (int n = 32; n <= maxWorkgroupSize; n += 32) {
-		workgroupSizes.emplace_back(n);
-	}
+	auto workgroupSizes = getWorkgroupSizes(maxWorkgroupSize);
 
 	for (const auto& n : workgroupSizes) {
 		// Set up kernel inputs.
 		auto bufSize =  n * numWorkgroups;
-		auto numIters = 1024;
 		auto buf = easyvk::Buffer(device, bufSize);
 		auto buf_size = easyvk::Buffer(device, 1);
 		auto num_iters = easyvk::Buffer(device, 1);
@@ -284,14 +286,15 @@ int main(int argc, char* argv[]) {
 	auto instance = easyvk::Instance(true);
 	auto physicalDevices = instance.physicalDevices();
 
-	auto numTrials = 32;
+	auto numTrials = 48;
 	auto deviceIndex = 0;
-	auto numWorkgroups = 1;
+	auto numWorkgroups = 1024;
+	auto numIters = 4 * 1024; // # of iterations to run kernel loop
 	// NOTE: Submitting some initial work to the GPU to "warm it up" and ensure fair timing results.
-	auto _ = no_barrier_benchmark(instance, deviceIndex, 1, numWorkgroups);
-	auto noBarrierResults = no_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups);
-	auto localBarrierResults = workgroup_barrier_local_benchmark(instance, deviceIndex, numTrials, numWorkgroups);
-	auto globalBarrierResults = workgroup_barrier_global_benchmark(instance, deviceIndex, numTrials, numWorkgroups);
+	auto _ = no_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	auto noBarrierResults = no_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	auto localBarrierResults = workgroup_barrier_local_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	auto globalBarrierResults = workgroup_barrier_global_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
 
 	ordered_json benchmarkResults;
 	benchmarkResults["numWorkgroups"] = numWorkgroups;

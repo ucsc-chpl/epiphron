@@ -70,9 +70,10 @@ ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, labe
 
 ax.set_xlabel('Workgroup Size.')
 # ax.set_xscale('log', base=2)
-ax.set_ylabel('Time')
+ax.set_ylabel('Time (\u03BCs)')
 # workgroup_size = data['deviceRuns'][0]['variedDispatch']['workGroupSize']
-ax.set_title(f'Workgroup Size vs. Time (numWorkgroups={data["numWorkgroups"]})')
+device = data["noBarrier"]["deviceName"]
+ax.set_title(f'numWorkgroups={data["numWorkgroups"]}, {device}')
 ax.legend()
 ax.grid(True)
 fig.savefig('data/out.png')
