@@ -1,4 +1,5 @@
 CXXFLAGS = -std=c++17
+CLSPVFLAGS = --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points
 
 SHADERS = $(wildcard *.cl)
 SPVS = $(patsubst %.cl,build/%.spv,$(SHADERS))
@@ -20,10 +21,10 @@ kernel_launch_test: $(BENCHMARK).cpp $(SPVS) $(CINITS)
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o  $(BENCHMARK).cpp -lvulkan -o build/$(BENCHMARK).run
 
 build/%.spv: %.cl
-	clspv --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points $< -o $@
+	clspv $(CLSPVFLAGS) $< -o $@
 
 build/%.cinit: %.cl
-	clspv --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points --output-format=c $< -o $@
+	clspv $(CLSPVFLAGS) --output-format=c  $< -o $@
 
 clean:
 	rm -rf build
