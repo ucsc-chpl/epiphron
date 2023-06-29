@@ -1,4 +1,4 @@
-
+import os
 import json
 import argparse
 import matplotlib.pyplot as plt
@@ -76,7 +76,9 @@ device = data["noBarrier"]["deviceName"]
 ax.set_title(f'numWorkgroups={data["numWorkgroups"]}, {device}')
 ax.legend()
 ax.grid(True)
-fig.savefig('data/out.png')
+
+output_filename = os.path.split(args.results_file)[1].split('.')[0]
+fig.savefig(f'data/{output_filename}.png')
 
 # plt.clf()
         
