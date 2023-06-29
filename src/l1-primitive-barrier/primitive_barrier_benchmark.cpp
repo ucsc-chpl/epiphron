@@ -93,10 +93,8 @@ ordered_json no_barrier_benchmark(easyvk::Instance instance,
 		std::vector<double> times(numTrials);
 
 		for (auto i = 0; i < numTrials; i++) {
-			// TODO: Seems like times are much slower for the first couple runs??
-			auto startTime = high_resolution_clock::now();
-			program.run();
-			times[i] = duration_cast<microseconds>(high_resolution_clock::now() - startTime).count();
+			auto kernelTime = program.runWithDispatchTiming();
+			times[i] = kernelTime / (double) 1000.0; // Convert from nanoseconds to microseconds.
 		}
 
 		auto avgTime = calculate_average(times);
@@ -171,10 +169,8 @@ ordered_json workgroup_barrier_local_benchmark(easyvk::Instance instance,
 		std::vector<double> times(numTrials);
 
 		for (auto i = 0; i < numTrials; i++) {
-			// TODO: Seems like times are much slower for the first couple runs??
-			auto startTime = high_resolution_clock::now();
-			program.run();
-			times[i] = duration_cast<microseconds>(high_resolution_clock::now() - startTime).count();
+			auto kernelTime = program.runWithDispatchTiming();
+			times[i] = kernelTime / (double) 1000.0; // Convert from nanoseconds to microseconds.
 		}
 
 		auto avgTime = calculate_average(times);
@@ -248,10 +244,8 @@ ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
 		std::vector<double> times(numTrials);
 
 		for (auto i = 0; i < numTrials; i++) {
-			// TODO: Seems like times are much slower for the first couple runs??
-			auto startTime = high_resolution_clock::now();
-			program.run();
-			times[i] = duration_cast<microseconds>(high_resolution_clock::now() - startTime).count();
+			auto kernelTime = program.runWithDispatchTiming();
+			times[i] = kernelTime / (double) 1000.0; // Convert from nanoseconds to microseconds.
 		}
 
 		auto avgTime = calculate_average(times);
