@@ -1,10 +1,12 @@
 import json
+import os
 import argparse
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 parser.add_argument('results_file', type=str, help='JSON file containing benchmark results')
 args = parser.parse_args()
+output_filename = os.path.split(args.results_file)[1].split('.')[0]
 
 # Load JSON data from file
 try:
@@ -38,7 +40,7 @@ workgroup_size = data['deviceRuns'][0]['variedDispatch']['workGroupSize']
 ax.set_title(f'Number of Workgroups vs. Utilization (workGroupSize={workgroup_size})')
 ax.legend()
 ax.grid(True)
-fig.savefig('data/variedDispatch.png')
+fig.savefig(f'data/variedDispatch{output_filename}.png')
 
 plt.clf()
         
@@ -64,4 +66,4 @@ workgroup_size = data['deviceRuns'][0]['variedThreadWorkload']['workGroupSize']
 ax.set_title(f'Thread Workload vs. Utilization (numWorkgroups={num_workgroups}, workGroupSize={workgroup_size})')
 ax.legend()
 ax.grid(True)
-fig.savefig('data/variedThreadWorkload.png')
+fig.savefig(f'data/variedThreadWorkload{output_filename}.png')
