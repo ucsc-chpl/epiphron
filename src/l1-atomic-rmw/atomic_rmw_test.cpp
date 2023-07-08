@@ -24,6 +24,7 @@ using std::list;
 using std::vector;
 using std::runtime_error;
 using std::string;
+using std::to_string;
 using std::copy;
 using nlohmann::json;
 using easyvk::Instance;
@@ -93,7 +94,7 @@ vector<uint32_t> getSPVCode(const string& filename) {
     return spv_code;
 }
 
-extern "C" void rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
+extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
     
     Program rmwProgram = Program(device, spv_code, buffers);
     rmwProgram.setWorkgroups(workgroups);
@@ -111,22 +112,17 @@ extern "C" void rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32
         rate += (float(rmw_iters) / static_cast<float>(duration));
     }
     rate /= float(test_iters);
-    string rateString = std::to_string(rate);
-    benchmarkData.write(rateString.c_str(), rateString.length());
     rmwProgram.teardown();
-    return;
+    return rate;
 }
 
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, uint32_t thread_dist, uint32_t curr_rmw) {
-
-    uint32_t test_total = workgroups * rmw_iters;
-    uint32_t total_rmws = test_total * test_iters;
+extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist, uint32_t curr_rmw) {
 
     string folder;
     if (thread_dist) folder = "chunking";
     else folder = "striding";
     vector<uint32_t> spv_code;
-    benchmarkData.write(device.properties.deviceName, strlen(device.properties.deviceName));
+    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
     switch (curr_rmw) {
         case 1:
@@ -160,62 +156,63 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
         default:
             return;
     }  
-    benchmarkData.write(currentTest, strlen(currentTest));
+    benchmarkData << currentTest;
 
     // Contention/Padding Values
-    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64, 128, 256}; 
+    list<uint32_t> test_values;
+    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
+        test_values.push_back(i);  
+    } 
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
             uint32_t contention = *it1;
             uint32_t padding = *it2;
-            char tuple[100];
-            sprintf(tuple,"(%d, %d, ", contention, padding);
-            benchmarkData.write(tuple, strlen(tuple));
+            benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
 
             const int size = workgroup_size * padding / contention;
-            if (size < 1) {
-                benchmarkData << "0.0)" << std::endl;
-                continue;
-            }
-    
+            bool isINF = true;
+            uint32_t rmw_iters = 64;
+            float rate = 0.0;
             Buffer resultBuf = Buffer(device, size);
             Buffer rmwItersBuf = Buffer(device, 1);
             Buffer paddingBuf = Buffer(device, 1);
             Buffer contentionBuf = Buffer(device, 1);
             Buffer sizeBuf = Buffer(device, 1);
             Buffer garbageBuf = Buffer(device, workgroups * workgroup_size);
-            vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
-            rmwItersBuf.store(0, rmw_iters);
             paddingBuf.store(0, padding);
             contentionBuf.store(0, contention);
             sizeBuf.store(0, size);
-
-            rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-
-            benchmarkData << ")" << std::endl;
-
+            while(isINF) {
+                vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
+                rmwItersBuf.store(0, rmw_iters);
+                rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+                if (std::isinf(rate)) rmw_iters *= 2;
+                else isINF = false;
+            }
             resultBuf.teardown();
             rmwItersBuf.teardown();
             paddingBuf.teardown();
             contentionBuf.teardown();
             sizeBuf.teardown();
             garbageBuf.teardown();
+            benchmarkData << to_string(rate) + ")" << std::endl;
         }
     }
     return;
 }
 
 extern "C" void run_rmw_tests(easyvk::Device device) {
-    uint32_t rmw_iters = 20000;
-    uint32_t test_iters = 16;
+    uint32_t test_iters = 32;
 
-    uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    double quotient = static_cast<double>(device.properties.limits.maxComputeWorkGroupCount[0]) / workgroup_size;
-    uint32_t workgroups = static_cast<uint32_t>(std::ceil(quotient));
+    for (uint32_t workgroup_size = 64; workgroup_size <= device.properties.limits.maxComputeWorkGroupInvocations; workgroup_size *= 2) {
 
-    for (uint32_t curr_rmw = 1; curr_rmw <= 7; curr_rmw++) {
-        run(device, workgroups, workgroup_size, rmw_iters/2, test_iters, 0, curr_rmw);
-        run(device, workgroups, workgroup_size, rmw_iters, test_iters, 1, curr_rmw);
+        double quotient = static_cast<double>(device.properties.limits.maxComputeWorkGroupCount[0]) / workgroup_size;
+        uint32_t workgroups = static_cast<uint32_t>(std::ceil(quotient));
+
+        for (uint32_t curr_rmw = 6; curr_rmw <= 6; curr_rmw++) { //1...7
+            run(device, workgroups, workgroup_size, test_iters, 0, curr_rmw);
+            run(device, workgroups, workgroup_size, test_iters, 1, curr_rmw);
+        }
     }
 
     return;
@@ -234,7 +231,7 @@ int main() {
 
     for (size_t i= 0; i < physicalDevices.size(); i++) {
 
-        if (i == 1) continue;
+        if (i == 1) continue; // Skipping Nvidia
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_rmw_tests(device);
