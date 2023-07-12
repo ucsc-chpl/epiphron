@@ -16,23 +16,17 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
-#define APPNAME "GPULockTests"
+#define APPNAME "GPURmwTests"
 #endif
 
-using std::ifstream;
-using std::list;
-using std::vector;
-using std::runtime_error;
-using std::string;
-using std::to_string;
-using std::copy;
+using namespace std;
 using nlohmann::json;
 using easyvk::Instance;
 using easyvk::Device;
 using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
-using namespace std::chrono;
+using namespace chrono;
 
 const char* os_name() {
     #ifdef _WIN32
@@ -63,7 +57,7 @@ const char* os_name() {
     #endif
 }
 
-std::ofstream benchmarkData; 
+ofstream benchmarkData; 
 
 void log(const char* fmt, ...) {
     va_list args;
@@ -186,7 +180,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
                 vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
                 rmwItersBuf.store(0, rmw_iters);
                 rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-                if (std::isinf(rate)) rmw_iters *= 2;
+                if (isinf(rate)) rmw_iters *= 2;
                 else isINF = false;
             }
             resultBuf.teardown();
@@ -195,21 +189,21 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             contentionBuf.teardown();
             sizeBuf.teardown();
             garbageBuf.teardown();
-            benchmarkData << to_string(rate) + ")" << std::endl;
+            benchmarkData << to_string(rate) + ")" << endl;
         }
     }
     return;
 }
 
 extern "C" void run_rmw_tests(easyvk::Device device) {
-    uint32_t test_iters = 32;
+    uint32_t test_iters = 16;
 
     for (uint32_t workgroup_size = 64; workgroup_size <= device.properties.limits.maxComputeWorkGroupInvocations; workgroup_size *= 2) {
 
         double quotient = static_cast<double>(device.properties.limits.maxComputeWorkGroupCount[0]) / workgroup_size;
-        uint32_t workgroups = static_cast<uint32_t>(std::ceil(quotient));
+        uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
 
-        for (uint32_t curr_rmw = 6; curr_rmw <= 6; curr_rmw++) { //1...7
+        for (uint32_t curr_rmw = 1; curr_rmw <= 7; curr_rmw++) { //1...7
             run(device, workgroups, workgroup_size, test_iters, 0, curr_rmw);
             run(device, workgroups, workgroup_size, test_iters, 1, curr_rmw);
         }
@@ -222,7 +216,7 @@ int main() {
     benchmarkData.open("result.txt"); 
 
     if (!benchmarkData.is_open()) {
-        std::cerr << "Failed to open the output file." << std::endl;
+        cerr << "Failed to open the output file." << endl;
         return 1;
     }
 
