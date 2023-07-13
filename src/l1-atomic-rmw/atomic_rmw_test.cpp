@@ -6,6 +6,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cmath>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 
@@ -14,22 +16,17 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
-#define APPNAME "GPULockTests"
+#define APPNAME "GPURmwTests"
 #endif
 
-using std::ifstream;
-using std::list;
-using std::vector;
-using std::runtime_error;
-using std::string;
-using std::copy;
+using namespace std;
 using nlohmann::json;
 using easyvk::Instance;
 using easyvk::Device;
 using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
-using namespace std::chrono;
+using namespace chrono;
 
 const char* os_name() {
     #ifdef _WIN32
@@ -60,6 +57,8 @@ const char* os_name() {
     #endif
 }
 
+ofstream benchmarkData; 
+
 void log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -89,7 +88,7 @@ vector<uint32_t> getSPVCode(const string& filename) {
     return spv_code;
 }
 
-extern "C" void rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
+extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
     
     Program rmwProgram = Program(device, spv_code, buffers);
     rmwProgram.setWorkgroups(workgroups);
@@ -107,144 +106,134 @@ extern "C" void rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32
         rate += (float(rmw_iters) / static_cast<float>(duration));
     }
     rate /= float(test_iters);
-    log("%f", rate);
     rmwProgram.teardown();
-    return;
+    return rate;
 }
 
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, uint32_t thread_dist, uint32_t curr_rmw) {
-
-    uint32_t test_total = workgroups * rmw_iters;
-    uint32_t total_rmws = test_total * test_iters;
+extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist, uint32_t curr_rmw) {
 
     string folder;
     if (thread_dist) folder = "chunking";
     else folder = "striding";
     vector<uint32_t> spv_code;
-    log(device.properties.deviceName);
+    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
+    char currentTest[100];
     switch (curr_rmw) {
         case 1:
-            log(", %s: atomic_cas_fail_no_store\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_cas_fail_no_store\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_cas_fail_no_store.cinit");
             break;
         case 2:
-            log(", %s: atomic_cas_succeed_no_store\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_cas_succeed_no_store\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_cas_succeed_no_store.cinit");
             break;
         case 3:
-            log(", %s: atomic_cas_succeed_store\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_cas_succeed_store\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_cas_succeed_store.cinit");
             break;
         case 4:
-            log(", %s: atomic_ex_relaxed\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_ex_relaxed\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_ex_relaxed.cinit");
             break;
         case 5:
-            log(", %s: atomic_ex\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_ex\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_ex.cinit");
             break;
         case 6:
-            log(", %s: atomic_fa_relaxed\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_fa_relaxed\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
             break;
         case 7:
-            log(", %s: atomic_fa\n", folder.c_str());
+            sprintf(currentTest, ", %s: atomic_fa\n", folder.c_str());
             spv_code = getSPVCode(folder + "/atomic_fa.cinit");
             break;
         default:
             return;
     }  
+    benchmarkData << currentTest;
 
     // Contention/Padding Values
-    list<uint32_t> test_values = {1, 2, 4, 8, 16, 32, 64, 128}; 
+    list<uint32_t> test_values;
+    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
+        test_values.push_back(i);  
+    } 
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
             uint32_t contention = *it1;
             uint32_t padding = *it2;
-            log("(%d, %d, ", contention, padding);
+            benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
 
             const int size = workgroup_size * padding / contention;
-            if (size < 1) {
-                log("0.0)\n");
-                continue;
-            }
-    
+            bool isINF = true;
+            uint32_t rmw_iters = 64;
+            float rate = 0.0;
             Buffer resultBuf = Buffer(device, size);
             Buffer rmwItersBuf = Buffer(device, 1);
             Buffer paddingBuf = Buffer(device, 1);
             Buffer contentionBuf = Buffer(device, 1);
             Buffer sizeBuf = Buffer(device, 1);
             Buffer garbageBuf = Buffer(device, workgroups * workgroup_size);
-            vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
-            rmwItersBuf.store(0, rmw_iters);
             paddingBuf.store(0, padding);
             contentionBuf.store(0, contention);
             sizeBuf.store(0, size);
-
-            rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-
-            log(")\n");
-
+            while(isINF) {
+                vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf, sizeBuf, garbageBuf };
+                rmwItersBuf.store(0, rmw_iters);
+                rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+                if (isinf(rate)) rmw_iters *= 2;
+                else isINF = false;
+            }
             resultBuf.teardown();
             rmwItersBuf.teardown();
             paddingBuf.teardown();
             contentionBuf.teardown();
             sizeBuf.teardown();
             garbageBuf.teardown();
+            benchmarkData << to_string(rate) + ")" << endl;
         }
     }
     return;
 }
 
 extern "C" void run_rmw_tests(easyvk::Device device) {
-    uint32_t rmw_iters = 65536;
-    uint32_t test_iters = 64;
-    // uint32_t maxComputeWorkGroupInvocations = device.properties.limits.maxComputeWorkGroupInvocations;
-    uint32_t workgroups = 256;
-    //uint32_t workgroups = device.properties.limits.maxComputeWorkGroupCount[0]
-    uint32_t workgroup_size = 256;
-    // uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupSize[0]
+    uint32_t test_iters = 16;
 
-    // if (workgroups > maxComputeWorkGroupInvocations) {
-    //     workgroups = maxComputeWorkGroupInvocations;
-    // } else {
-    //     workgroups = maxComputeWorkGroupInvocations / workgroup_size;
-    // }
+    for (uint32_t workgroup_size = 64; workgroup_size <= device.properties.limits.maxComputeWorkGroupInvocations; workgroup_size *= 2) {
 
-    for (uint32_t curr_rmw = 1; curr_rmw <= 7; curr_rmw++) {
-        run(device, workgroups, workgroup_size, rmw_iters, test_iters, 0, curr_rmw);
-        run(device, workgroups, workgroup_size, rmw_iters, test_iters, 1, curr_rmw);
+        double quotient = static_cast<double>(device.properties.limits.maxComputeWorkGroupCount[0]) / workgroup_size;
+        uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
+
+        for (uint32_t curr_rmw = 1; curr_rmw <= 7; curr_rmw++) { //1...7
+            run(device, workgroups, workgroup_size, test_iters, 0, curr_rmw);
+            run(device, workgroups, workgroup_size, test_iters, 1, curr_rmw);
+        }
     }
 
     return;
 }
 
 int main() {
-    std::ofstream outputFile("result.txt");
+    benchmarkData.open("result.txt"); 
 
-    if (!outputFile.is_open()) {
-        std::cerr << "Failed to open the output file." << std::endl;
+    if (!benchmarkData.is_open()) {
+        cerr << "Failed to open the output file." << endl;
         return 1;
     }
-
-    std::streambuf* coutBuffer = std::cout.rdbuf();
-    std::cout.rdbuf(outputFile.rdbuf());
 
     auto instance = easyvk::Instance(true);
 	auto physicalDevices = instance.physicalDevices();
 
     for (size_t i= 0; i < physicalDevices.size(); i++) {
 
-        if (i != 1) continue;
+        if (i == 1) continue; // Skipping Nvidia
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_rmw_tests(device);
         device.teardown();
 
     }
-    std::cout.rdbuf(coutBuffer);
     
-    outputFile.close();
+    benchmarkData.close();
 
     instance.teardown();
     system("python3 heatmap.py");
