@@ -52,6 +52,28 @@ color = 'blue'
 ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color=color)
 ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
 
+# Subgroup local
+local_sub_res = data["localSubgroupBarrier"]["results"]
+workgroup_sizes = [result["workgroupSize"] for result in local_sub_res]
+avg_times = [result["avgTime"] for result in local_sub_res]
+std_devs = [result["stdDev"] for result in local_sub_res]
+# plot
+label = "local subgroup barrier"
+color = 'orange'
+ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color=color)
+ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
+
+# Subgroup global
+global_sub_res = data["globalSubgroupBarrier"]["results"]
+workgroup_sizes = [result["workgroupSize"] for result in global_sub_res]
+avg_times = [result["avgTime"] for result in global_sub_res]
+std_devs = [result["stdDev"] for result in global_sub_res]
+# plot
+label = "global subgroup barrier"
+color = 'purple'
+ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color=color)
+ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
+
 
 
 # for i, deviceRun in enumerate(data["deviceRuns"]):
