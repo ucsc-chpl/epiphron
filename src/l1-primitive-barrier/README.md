@@ -27,12 +27,12 @@ This can help to inform programmers what is worth optimizing on a given device a
 
 ### Host
 ```C++
-    for (auto i = 0; i < numTrials; i++) {
-        times[i] = program.runWithDispatchTiming();
-    }
+for (auto i = 0; i < numTrials; i++) {
+    times[i] = program.runWithDispatchTiming();
+}
 
-	auto avgTime = calculate_average(times);
-	auto timeStdDev = calculate_std_dev(times);
+auto avgTime = calculate_average(times);
+auto timeStdDev = calculate_std_dev(times);
 ```
 
 
