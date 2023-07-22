@@ -90,7 +90,7 @@ ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, labe
 #     ax.errorbar(workgroup_counts, avg_utils, yerr=std_devs, fmt='o', capsize=5, color=color)
 #     ax.plot(workgroup_counts, avg_utils, marker='o', linestyle='-', color=color, label=label)
 
-ax.set_xlabel('Workgroup Size.')
+ax.set_xlabel('Workgroup Size')
 # ax.set_xscale('log', base=2)
 ax.set_ylabel('Time (\u03BCs)')
 # workgroup_size = data['deviceRuns'][0]['variedDispatch']['workGroupSize']
