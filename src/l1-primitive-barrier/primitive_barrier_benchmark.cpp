@@ -421,17 +421,33 @@ ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
 
 int main(int argc, char* argv[]) {
 	// Initialize 
-	auto instance = easyvk::Instance(true);
+	auto instance = easyvk::Instance(false);
 
-	auto numTrials = 48;
+	auto numTrials = 64;
 	auto deviceIndex = 0; 
 	auto numWorkgroups = 16;
-	auto numIters = 4 * 1024; // # of iterations to run kernel loop
+	auto numIters = 512; // # of iterations to run kernel loop
+	auto _ = no_barrier_benchmark(instance, deviceIndex, 16, numWorkgroups, 512); // warmup GPU
+
+	std::cout << "Starting no_barrier benchmark..." << std::endl;
 	auto noBarrierResults = no_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	std::cout << "no_barrier benchmark finished." << std::endl;
+
+	std::cout << "Starting local_subgroup_barrier benchmark..." << std::endl;
 	auto localSubgroupResults = local_subgroup_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	std::cout << "local_subgroup_barrier benchmark finished." << std::endl;
+
+	std::cout << "Starting global_subgroup_barrier benchmark..." << std::endl;
 	auto globalSubgroupResults = global_subgroup_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	std::cout << "global_subgroup_barrier benchmark finished." << std::endl;
+
+	std::cout << "Starting workgroup_barrier_local benchmark..." << std::endl;
 	auto localBarrierResults = workgroup_barrier_local_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	std::cout << "workgroup_barrier_local benchmark finished." << std::endl;
+
+	std::cout << "Starting workgroup_barrier_global benchmark..." << std::endl;
 	auto globalBarrierResults = workgroup_barrier_global_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	std::cout << "workgroup_barrier_global benchmark finished." << std::endl;
 
 	ordered_json benchmarkResults;
 	benchmarkResults["numWorkgroups"] = numWorkgroups;
