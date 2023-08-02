@@ -111,7 +111,71 @@ void ticket_lock_test() {
 	instance.teardown();
 }
 
+
+void occupancy_discovery_test() {
+	// Set up instance.
+	auto instance = easyvk::Instance(true);
+
+    // Select device.
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(0));
+    std::cout << "Device name: " << device.properties.deviceName << "\n";
+
+    // Loader shader code.
+    std::vector<uint32_t> spvCode = 
+    #include "build/occupancy_discovery.cinit"
+    ;
+    auto entry_point = "occupancy_discovery";
+
+    auto numWorkgroups = 1000;
+    auto workgroupSize = 256;
+
+    // Set up buffers.
+    auto count_buf = easyvk::Buffer(device, 1);
+    auto poll_open_buf = easyvk::Buffer(device, 1);
+    auto M_buf = easyvk::Buffer(device, numWorkgroups);
+    auto now_serving_buf = easyvk::Buffer(device, 1);
+    auto next_ticket_buf = easyvk::Buffer(device, 1);
+    count_buf.store(0, 0);
+    poll_open_buf.store(0, 1); // Poll is initially open.
+    next_ticket_buf.store(0, 0);
+    now_serving_buf.store(0, 0);
+
+    std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
+                                                poll_open_buf,
+                                                M_buf,
+                                                now_serving_buf,
+                                                next_ticket_buf};
+
+    // Initialize the kernel.
+    auto program = easyvk::Program(device, spvCode, kernelInputs);
+    program.setWorkgroups(numWorkgroups);
+    program.setWorkgroupSize(workgroupSize);
+    program.initialize(entry_point);
+
+
+    // Launch kernel.
+    program.run();
+
+
+    // Print results.
+    std::cout << "numWorkgroups: " << numWorkgroups << "\n";
+    std::cout << "workgroupSize: " << workgroupSize << "\n";
+    std::cout << "Participating workgroups: " << count_buf.load(0) << "\n";
+
+
+	// Cleanup.
+    program.teardown();
+    count_buf.teardown();
+    poll_open_buf.teardown();
+    M_buf.teardown();
+    next_ticket_buf.teardown();
+    now_serving_buf.teardown();
+    device.teardown();
+	instance.teardown();
+
+}
+
 int main(int argc, char* argv[]) {
-    ticket_lock_test();
+    occupancy_discovery_test();
 	return 0;
 }
