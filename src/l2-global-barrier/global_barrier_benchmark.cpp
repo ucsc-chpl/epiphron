@@ -47,7 +47,7 @@ double calculate_coeff_variation(const std::vector<double>& values) {
 
 void ticket_lock_test() {
 	// Set up instance.
-	auto instance = easyvk::Instance(false);
+	auto instance = easyvk::Instance(true);
 
     // Select device.
     auto device = easyvk::Device(instance, instance.physicalDevices().at(0));
@@ -59,7 +59,7 @@ void ticket_lock_test() {
     ;
     auto entry_point = "ticket_lock_test";
 
-    auto numWorkgroups = 32;
+    auto numWorkgroups = 1024;
     auto workgroupSize = 1;
 
     // Set up buffers.
@@ -108,6 +108,7 @@ void ticket_lock_test() {
     now_serving_buf.teardown();
     counter_buf.teardown();
     histogram_buf.teardown();
+    device.teardown();
 	instance.teardown();
 }
 
@@ -126,8 +127,8 @@ void occupancy_discovery_test() {
     ;
     auto entry_point = "occupancy_discovery";
 
-    auto numWorkgroups = 1000;
-    auto workgroupSize = 256;
+    auto numWorkgroups = device.properties.limits.maxComputeWorkGroupCount[0];
+    auto workgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
 
     // Set up buffers.
     auto count_buf = easyvk::Buffer(device, 1);
@@ -176,6 +177,7 @@ void occupancy_discovery_test() {
 }
 
 int main(int argc, char* argv[]) {
+    ticket_lock_test();
     occupancy_discovery_test();
 	return 0;
 }
