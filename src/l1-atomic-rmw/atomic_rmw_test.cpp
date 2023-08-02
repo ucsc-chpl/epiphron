@@ -110,46 +110,17 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
     return rate;
 }
 
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist, uint32_t curr_rmw) {
+extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist) {
 
     string folder;
     if (thread_dist) folder = "chunking";
     else folder = "striding";
-    vector<uint32_t> spv_code;
+    vector<uint32_t> spv_code_relaxed, spv_code_acq_rel;
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
-    switch (curr_rmw) {
-        case 1:
-            sprintf(currentTest, ", %s: atomic_cas_fail_no_store\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_cas_fail_no_store.cinit");
-            break;
-        case 2:
-            sprintf(currentTest, ", %s: atomic_cas_succeed_no_store\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_cas_succeed_no_store.cinit");
-            break;
-        case 3:
-            sprintf(currentTest, ", %s: atomic_cas_succeed_store\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_cas_succeed_store.cinit");
-            break;
-        case 4:
-            sprintf(currentTest, ", %s: atomic_ex_relaxed\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_ex_relaxed.cinit");
-            break;
-        case 5:
-            sprintf(currentTest, ", %s: atomic_ex\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_ex.cinit");
-            break;
-        case 6:
-            sprintf(currentTest, ", %s: atomic_fa_relaxed\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
-            break;
-        case 7:
-            sprintf(currentTest, ", %s: atomic_fa\n", folder.c_str());
-            spv_code = getSPVCode(folder + "/atomic_fa.cinit");
-            break;
-        default:
-            return;
-    }  
+    sprintf(currentTest, ", %s: fetch_add\n", folder.c_str());
+    spv_code_relaxed = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
+    spv_code_acq_rel = getSPVCode(folder + "/atomic_fa.cinit");
     benchmarkData << currentTest;
 
     // Contention/Padding Values
@@ -165,7 +136,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
 
             const int size = ((workgroup_size * workgroups) * padding) / contention;
             uint32_t rmw_iters = 64;
-            float rate = 0.0;
+            float rate_relaxed = 0.0, rate_acq_rel = 0.0;
             Buffer resultBuf = Buffer(device, size);
             Buffer sizeBuf = Buffer(device, 1);
             Buffer paddingBuf = Buffer(device, 1);
@@ -176,14 +147,13 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             contentionBuf.store(0, contention);
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
-                if (thread_dist) {
-                    vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, contentionBuf };
-                    rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-                } else {
-                    vector<Buffer> buffers = { resultBuf, rmwItersBuf, paddingBuf, sizeBuf };
-                    rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-                }
-                if (isinf(rate)) rmw_iters *= 2;
+                vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
+                if (thread_dist) buffers.emplace_back(contentionBuf);
+                else buffers.emplace_back(sizeBuf);
+
+                rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
+                rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
+                if (isinf(rate_relaxed) || isinf(rate_acq_rel)) rmw_iters *= 2;
                 else break;
             }
             resultBuf.teardown();
@@ -191,7 +161,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             paddingBuf.teardown();
             rmwItersBuf.teardown();
             contentionBuf.teardown();
-            benchmarkData << to_string(rate) + ")" << endl;
+            benchmarkData << to_string(rate_relaxed/rate_acq_rel) + ")" << endl;
         }
     }
     return;
@@ -208,8 +178,8 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
 
     uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
 
-    run(device, workgroups, workgroup_size, test_iters, 0, 6);
-    run(device, workgroups, workgroup_size, test_iters, 1, 6);
+    run(device, workgroups, workgroup_size, test_iters, 0);
+    run(device, workgroups, workgroup_size, test_iters, 1);
     return;
 }
 
