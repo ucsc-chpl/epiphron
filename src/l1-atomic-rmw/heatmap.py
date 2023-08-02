@@ -3,6 +3,7 @@ from ast import parse
 from cmath import nan
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 import numpy as np
 import matplotlib.ticker as ticker
 import re
@@ -53,8 +54,8 @@ def generate_heatmap(coordinates, title):
  # Add text annotations for data points
  for i in range(data_array.shape[0]):
     for j in range(data_array.shape[1]):
-        text = ax.text(j, i, int(data_array[i][j]),
-                    ha="center", va="center", color="w", fontsize=7)
+        text = ax.text(j, i, round(data_array[i][j], 2),
+                    ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
  # Customize the color bar range
  cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[data_min, math.floor(data_max/3), math.floor(data_max/2), data_max])
