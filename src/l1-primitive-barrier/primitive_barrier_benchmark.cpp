@@ -423,7 +423,7 @@ int main(int argc, char* argv[]) {
 	// Initialize 
 	auto instance = easyvk::Instance(false);
 
-	auto numTrials = 64;
+	auto numTrials = 32;
 	auto deviceIndex = 0; 
 	auto numWorkgroups = 16;
 	auto numIters = 512; // # of iterations to run kernel loop
@@ -465,7 +465,11 @@ int main(int argc, char* argv[]) {
     // Create file name using current time and date
     char filename[100];
 	std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
+	#ifdef __ANDROID__
+	std::ofstream outFile(filename);
+	#else
 	std::ofstream outFile(std::string("data/") + std::string(filename));
+	#endif
 	if (outFile.is_open()) {
 		outFile << benchmarkResults.dump(4) << std::endl;
 		outFile.close();
