@@ -3,6 +3,7 @@
 
 // Ticket lock 
 static void lock(__global atomic_uint* next_ticket, __global atomic_uint* now_serving) {
+    atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_relaxed, memory_scope_device);
     uint my_ticket = atomic_fetch_add(next_ticket, 1);
     while (atomic_load(now_serving) != my_ticket) {}
 }
