@@ -1,8 +1,9 @@
 #define PARTICIPATING 1
 #define NON_PARTICIPATING 0
 
-// Ticket lock 
+// Ticket lock --------------------------------------------------------------------------
 static void lock(__global atomic_uint* next_ticket, __global atomic_uint* now_serving) {
+    atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_relaxed, memory_scope_device);
     uint my_ticket = atomic_fetch_add(next_ticket, 1);
     while (atomic_load(now_serving) != my_ticket) {}
 }
@@ -11,6 +12,7 @@ static void unlock(__global atomic_uint* now_serving) {
     atomic_store(now_serving, atomic_load(now_serving) + 1);
 }
 
+// Occupancy Discovery ------------------------------------------------------------------
 static uint get_occupancy(__global uint *count, 
                           __global uint *poll_open,
                           __global uint *M,
@@ -36,6 +38,24 @@ static uint get_occupancy(__global uint *count,
     }
     unlock(now_serving);
     return PARTICIPATING;
+}
+
+
+// Occupancy-Bound Execution Environment ------------------------------------------------
+static uint p_get_num_groups(__global uint *count) {
+    return *count;
+}
+
+static uint p_get_group_id(__global uint *M) {
+    return M[get_group_id(0)];
+}
+
+static uint p_get_global_id(__global uint *M) {
+    return (p_get_group_id(M) * get_local_size(0)) + get_local_id(0);
+}
+
+static uint p_get_global_size(__global uint *count) {
+    return (*count) * get_local_size(0);
 }
 
 __kernel void global_barrier(__global uint *count, 
