@@ -62,7 +62,8 @@ __kernel void global_barrier(__global uint *count,
                              __global uint *poll_open,
                              __global uint *M,
                              __global atomic_uint *now_serving,
-                             __global atomic_uint *next_ticket) {
+                             __global atomic_uint *next_ticket,
+                             __global atomic_uint *global_counter) {
     // Single represesentative thread from each workgroups runs the occupancy_discovery protocol
     __local uint participating[1];
     if (get_local_id(0) == 0) {
@@ -77,7 +78,21 @@ __kernel void global_barrier(__global uint *count,
         return;
     }
 
+    // Participating workgroups continue with kernel computation. 
+    // From here we can assume fair scheduling of workgroups.    
+    if (get_local_id(0) == 0) {
+        // Verify that  
+        atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_relaxed, memory_scope_device);
+        atomic_fetch_add(global_counter, 1);
+    }
 
-    
+
+
+
+
+
+
+
+
 
 }

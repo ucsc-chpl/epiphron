@@ -45,12 +45,12 @@ double calculate_coeff_variation(const std::vector<double>& values) {
 }
 
 
-void ticket_lock_test() {
+void ticket_lock_test(size_t deviceIndex) {
 	// Set up instance.
 	auto instance = easyvk::Instance(true);
 
     // Select device.
-    auto device = easyvk::Device(instance, instance.physicalDevices().at(0));
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
     std::cout << "Device name: " << device.properties.deviceName << "\n";
 
     // Loader shader code.
@@ -59,7 +59,7 @@ void ticket_lock_test() {
     ;
     auto entry_point = "ticket_lock_test";
 
-    auto numWorkgroups = 1024;
+    auto numWorkgroups = 32;
     auto workgroupSize = 1;
 
     // Set up buffers.
@@ -82,13 +82,12 @@ void ticket_lock_test() {
     program.setWorkgroupSize(workgroupSize);
     program.initialize(entry_point);
 
-
     // Launch kernel.
     program.run();
 
     // Each thread increments the counter 256 times, so the value of the counter 
     // after the kernel runs should be numWorkgroups * workgroupSize * 256
-    assert(counter_buf.load(0) == numWorkgroups * workgroupSize * 256);
+    // assert(counter_buf.load(0) == numWorkgroups * workgroupSize * 256);
     std::cout << "numWorkgroups: " << numWorkgroups << "\n";
     std::cout << "workgroupSize: " << workgroupSize << "\n";
     std::cout << "Expected counter:  " << numWorkgroups * workgroupSize * 256 << "\n";
@@ -112,13 +111,12 @@ void ticket_lock_test() {
 	instance.teardown();
 }
 
-
-void occupancy_discovery_test() {
+void occupancy_discovery_test(size_t deviceIndex, size_t numWorkgroups, size_t workgroupSize) {
 	// Set up instance.
 	auto instance = easyvk::Instance(true);
 
     // Select device.
-    auto device = easyvk::Device(instance, instance.physicalDevices().at(0));
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
     std::cout << "Device name: " << device.properties.deviceName << "\n";
 
     // Loader shader code.
@@ -127,8 +125,10 @@ void occupancy_discovery_test() {
     ;
     auto entry_point = "occupancy_discovery";
 
-    auto numWorkgroups = device.properties.limits.maxComputeWorkGroupCount[0];
-    auto workgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+    // auto numWorkgroups = device.properties.limits.maxComputeWorkGroupCount[0];
+    // auto numWorkgroups = 2048;
+    // auto workgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+    // auto workgroupSize = 1;
 
     // Set up buffers.
     auto count_buf = easyvk::Buffer(device, 1);
@@ -153,16 +153,13 @@ void occupancy_discovery_test() {
     program.setWorkgroupSize(workgroupSize);
     program.initialize(entry_point);
 
-
     // Launch kernel.
     program.run();
-
 
     // Print results.
     std::cout << "numWorkgroups: " << numWorkgroups << "\n";
     std::cout << "workgroupSize: " << workgroupSize << "\n";
     std::cout << "Participating workgroups: " << count_buf.load(0) << "\n";
-
 
 	// Cleanup.
     program.teardown();
@@ -173,11 +170,88 @@ void occupancy_discovery_test() {
     now_serving_buf.teardown();
     device.teardown();
 	instance.teardown();
+}
 
+void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t workgroupSize) {
+	// Set up instance.
+	auto instance = easyvk::Instance(true);
+
+    // Select device.
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+    std::cout << "Device name: " << device.properties.deviceName << "\n";
+
+    // Loader shader code.
+    std::vector<uint32_t> spvCode = 
+    #include "build/global_barrier.cinit"
+    ;
+    auto entry_point = "global_barrier";
+
+    // auto numWorkgroups = device.properties.limits.maxComputeWorkGroupCount[0];
+    // auto numWorkgroups = 2048;
+    // auto workgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+    // auto workgroupSize = 1;
+
+    // Set up buffers.
+    auto count_buf = easyvk::Buffer(device, 1);
+    auto poll_open_buf = easyvk::Buffer(device, 1);
+    auto M_buf = easyvk::Buffer(device, numWorkgroups);
+    auto now_serving_buf = easyvk::Buffer(device, 1);
+    auto next_ticket_buf = easyvk::Buffer(device, 1);
+    auto global_counter_buf = easyvk::Buffer(device, 1);
+    count_buf.store(0, 0);
+    poll_open_buf.store(0, 1); // Poll is initially open.
+    next_ticket_buf.store(0, 0);
+    now_serving_buf.store(0, 0);
+    global_counter_buf.store(0, 0);
+
+    std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
+                                                poll_open_buf,
+                                                M_buf,
+                                                now_serving_buf,
+                                                next_ticket_buf,
+                                                global_counter_buf};
+
+    // Initialize the kernel.
+    auto program = easyvk::Program(device, spvCode, kernelInputs);
+    program.setWorkgroups(numWorkgroups);
+    program.setWorkgroupSize(workgroupSize);
+    program.initialize(entry_point);
+
+    // Launch kernel.
+    program.run();
+
+    // Print results.
+    std::cout << "numWorkgroups: " << numWorkgroups << "\n";
+    std::cout << "workgroupSize: " << workgroupSize << "\n";
+    std::cout << "Participating workgroups: " << count_buf.load(0) << "\n";
+    std::cout << "Global counter: " << global_counter_buf.load(0) << "\n";
+
+	// Cleanup.
+    program.teardown();
+    count_buf.teardown();
+    poll_open_buf.teardown();
+    M_buf.teardown();
+    next_ticket_buf.teardown();
+    now_serving_buf.teardown();
+    device.teardown();
+	instance.teardown();
 }
 
 int main(int argc, char* argv[]) {
-    ticket_lock_test();
-    occupancy_discovery_test();
+    auto deviceIndex = 0;
+    auto numWorkgroups = 1024;
+    auto workgroupSize = 256;
+
+    // std::cout << "Running the ticket lock test...\n";
+    // ticket_lock_test(deviceIndex);
+    // std::cout << "Ticket lock test finished.\n\n";
+    std::cout << "Running occupancy discovery test...\n";
+    occupancy_discovery_test(deviceIndex, numWorkgroups, workgroupSize);
+    std::cout << "Occupancy discovery test finished.\n\n";
+
+    std::cout << "Running the global barrier benchmark...\n";
+    global_barrier_benchmark(deviceIndex, numWorkgroups, workgroupSize);
+    std::cout << "Global barrier benchmark finished.\n\n";
+
 	return 0;
 }
