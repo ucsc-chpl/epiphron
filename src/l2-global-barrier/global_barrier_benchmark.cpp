@@ -197,19 +197,21 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     auto M_buf = easyvk::Buffer(device, numWorkgroups);
     auto now_serving_buf = easyvk::Buffer(device, 1);
     auto next_ticket_buf = easyvk::Buffer(device, 1);
-    auto global_counter_buf = easyvk::Buffer(device, 1);
+    auto flag_buf = easyvk::Buffer(device, numWorkgroups);
     count_buf.store(0, 0);
     poll_open_buf.store(0, 1); // Poll is initially open.
     next_ticket_buf.store(0, 0);
     now_serving_buf.store(0, 0);
-    global_counter_buf.store(0, 0);
+    for (int i = 0; i < numWorkgroups; i++) {
+        flag_buf.store(i, 0);
+    }
 
     std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
                                                 poll_open_buf,
                                                 M_buf,
                                                 now_serving_buf,
                                                 next_ticket_buf,
-                                                global_counter_buf};
+                                                flag_buf};
 
     // Initialize the kernel.
     auto program = easyvk::Program(device, spvCode, kernelInputs);
@@ -224,7 +226,6 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     std::cout << "numWorkgroups: " << numWorkgroups << "\n";
     std::cout << "workgroupSize: " << workgroupSize << "\n";
     std::cout << "Participating workgroups: " << count_buf.load(0) << "\n";
-    std::cout << "Global counter: " << global_counter_buf.load(0) << "\n";
 
 	// Cleanup.
     program.teardown();
@@ -233,14 +234,15 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     M_buf.teardown();
     next_ticket_buf.teardown();
     now_serving_buf.teardown();
+    flag_buf.teardown();
     device.teardown();
 	instance.teardown();
 }
 
 int main(int argc, char* argv[]) {
     auto deviceIndex = 0;
-    auto numWorkgroups = 1024;
-    auto workgroupSize = 256;
+    auto numWorkgroups = 512;
+    auto workgroupSize = 512;
 
     // std::cout << "Running the ticket lock test...\n";
     // ticket_lock_test(deviceIndex);

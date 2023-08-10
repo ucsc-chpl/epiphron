@@ -63,7 +63,7 @@ __kernel void global_barrier(__global uint *count,
                              __global uint *M,
                              __global atomic_uint *now_serving,
                              __global atomic_uint *next_ticket,
-                             __global atomic_uint *global_counter) {
+                             __global atomic_uint *flag) {
     // Single represesentative thread from each workgroups runs the occupancy_discovery protocol
     __local uint participating[1];
     if (get_local_id(0) == 0) {
@@ -80,19 +80,35 @@ __kernel void global_barrier(__global uint *count,
 
     // Participating workgroups continue with kernel computation. 
     // From here we can assume fair scheduling of workgroups.    
-    if (get_local_id(0) == 0) {
-        // Verify that  
-        atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_relaxed, memory_scope_device);
-        atomic_fetch_add(global_counter, 1);
+    for (int i = 0; i < 256; i++) {
+        // Global Barrier -----------------------------------------------------
+        if (p_get_group_id(M) == 0) {
+            // Controller workgroup
+            if (get_local_id(0) + 1 < p_get_num_groups(count)) {
+                // Each thread is in charge of a participating workgroup.
+                // They wait for their workgroup to arrive at the barrier.
+                while (atomic_load(&flag[get_local_id(0) + 1]) == 0);
+            }
+
+            // Wait for all threads to have their follower workgroup arrive.
+            barrier(CLK_GLOBAL_MEM_FENCE);
+
+            if (get_local_id(0) + 1 < p_get_num_groups(count)) {
+                // Release follower thread from barrier.
+                atomic_store(&flag[get_local_id(0) + 1], 0);
+            }
+        } else {
+            barrier(CLK_GLOBAL_MEM_FENCE);
+
+            // Follower workgroups
+            if (get_local_id(0) == 0) {
+                // Update flag to signal arrival to barrier.
+                atomic_store(&flag[p_get_group_id(M)], 1);
+                while (atomic_load(&flag[p_get_group_id(M)]) == 1);
+            }
+
+            // Wait for all flags to be updated before proceeding.
+            barrier(CLK_GLOBAL_MEM_FENCE);
+        }
     }
-
-
-
-
-
-
-
-
-
-
 }
