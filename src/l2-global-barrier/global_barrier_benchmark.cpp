@@ -172,7 +172,7 @@ void occupancy_discovery_test(size_t deviceIndex, size_t numWorkgroups, size_t w
 	instance.teardown();
 }
 
-void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t workgroupSize) {
+void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t workgroupSize, size_t numIters) {
 	// Set up instance.
 	auto instance = easyvk::Instance(true);
 
@@ -198,12 +198,16 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     auto now_serving_buf = easyvk::Buffer(device, 1);
     auto next_ticket_buf = easyvk::Buffer(device, 1);
     auto flag_buf = easyvk::Buffer(device, numWorkgroups);
+    auto output_buf = easyvk::Buffer(device, numWorkgroups);
+    auto num_iters_buf = easyvk::Buffer(device, 1);
     count_buf.store(0, 0);
     poll_open_buf.store(0, 1); // Poll is initially open.
     next_ticket_buf.store(0, 0);
     now_serving_buf.store(0, 0);
+    num_iters_buf.store(0, numIters);
     for (int i = 0; i < numWorkgroups; i++) {
         flag_buf.store(i, 0);
+        output_buf.store(i, 0);
     }
 
     std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
@@ -211,7 +215,9 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
                                                 M_buf,
                                                 now_serving_buf,
                                                 next_ticket_buf,
-                                                flag_buf};
+                                                flag_buf,
+                                                output_buf,
+                                                num_iters_buf};
 
     // Initialize the kernel.
     auto program = easyvk::Program(device, spvCode, kernelInputs);
@@ -227,6 +233,15 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     std::cout << "workgroupSize: " << workgroupSize << "\n";
     std::cout << "Participating workgroups: " << count_buf.load(0) << "\n";
 
+    // Check the safety and correctness of the barrier.
+    for (int i = 0; i < count_buf.load(0); i++) {
+        // Each position in the buf corresponding to a participating workgroup 
+        // should be incremented exactly numIters times.
+        assert(output_buf.load(i) == numIters);
+    }
+
+    std::cout << "Barrier passed correctness check!\n";
+
 	// Cleanup.
     program.teardown();
     count_buf.teardown();
@@ -235,14 +250,17 @@ void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t w
     next_ticket_buf.teardown();
     now_serving_buf.teardown();
     flag_buf.teardown();
+    output_buf.teardown();
+    num_iters_buf.teardown(); 
     device.teardown();
 	instance.teardown();
 }
 
 int main(int argc, char* argv[]) {
     auto deviceIndex = 0;
-    auto numWorkgroups = 512;
-    auto workgroupSize = 512;
+    auto numWorkgroups = 1024;
+    auto workgroupSize = 256;
+    auto numIters = 1024;
 
     // std::cout << "Running the ticket lock test...\n";
     // ticket_lock_test(deviceIndex);
@@ -252,7 +270,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Occupancy discovery test finished.\n\n";
 
     std::cout << "Running the global barrier benchmark...\n";
-    global_barrier_benchmark(deviceIndex, numWorkgroups, workgroupSize);
+    global_barrier_benchmark(deviceIndex, numWorkgroups, workgroupSize, numIters);
     std::cout << "Global barrier benchmark finished.\n\n";
 
 	return 0;
