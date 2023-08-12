@@ -1,11 +1,11 @@
 CXXFLAGS = -std=c++17
-
+CINITS = $(patsubst %.cl,%.cinit,$(wildcard chunking/*.cl striding/*.cl))
 all: easyvk atomic_rmw_test
 
 easyvk:
 	make -C ../../easyvk
 
-atomic_rmw_test: atomic_rmw_test.cpp chunking/atomic_cas_succeed_store.cinit chunking/atomic_cas_succeed_no_store.cinit chunking/atomic_cas_fail_no_store.cinit chunking/atomic_fa.cinit chunking/atomic_fa_relaxed.cinit chunking/atomic_ex.cinit chunking/atomic_ex_relaxed.cinit striding/atomic_cas_succeed_store.cinit striding/atomic_cas_succeed_no_store.cinit striding/atomic_cas_fail_no_store.cinit striding/atomic_fa.cinit striding/atomic_fa_relaxed.cinit striding/atomic_ex.cinit striding/atomic_ex_relaxed.cinit
+atomic_rmw_test: atomic_rmw_test.cpp $(CINITS)
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o atomic_rmw_test.cpp -lvulkan -o atomic_rmw_test.run
 
 %.spv: %.cl

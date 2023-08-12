@@ -118,14 +118,19 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
     vector<uint32_t> spv_code_relaxed, spv_code_acq_rel;
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
-    sprintf(currentTest, ", %s: fetch_add\n", folder.c_str());
+    sprintf(currentTest, ", %s: global_fetch_add_relaxed\n", folder.c_str());
     spv_code_relaxed = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
-    spv_code_acq_rel = getSPVCode(folder + "/atomic_fa.cinit");
+    spv_code_acq_rel = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
     benchmarkData << currentTest;
 
     // Contention/Padding Values
     list<uint32_t> test_values;
-    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
+    //For only testing global memory 
+    uint32_t max_pair;
+    if (workgroup_size * workgroups > 32768) max_pair = 32768;
+    else max_pair = workgroup_size * workgroups;
+
+    for (uint32_t i = 1; i <= max_pair; i *= 2) {
         test_values.push_back(i);  
     } 
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
@@ -148,11 +153,16 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
                 vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
-                if (thread_dist) buffers.emplace_back(contentionBuf);
-                else buffers.emplace_back(sizeBuf);
-
-                rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
-                rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
+                if (thread_dist) { // Chunking
+                    buffers.emplace_back(contentionBuf);
+                    //rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
+                    rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
+                } else { // Striding
+                    buffers.emplace_back(sizeBuf);
+                    //rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
+                    buffers.emplace_back(contentionBuf);
+                    rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
+                }
                 if (isinf(rate_relaxed) || isinf(rate_acq_rel)) rmw_iters *= 2;
                 else break;
             }
@@ -161,14 +171,14 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             paddingBuf.teardown();
             rmwItersBuf.teardown();
             contentionBuf.teardown();
-            benchmarkData << to_string(rate_relaxed/rate_acq_rel) + ")" << endl;
+            benchmarkData << to_string(rate_relaxed) + ")" << endl;
         }
     }
     return;
 }
 
 extern "C" void run_rmw_tests(easyvk::Device device) {
-    uint32_t test_iters = 32;
+    uint32_t test_iters = 64;
 
     uint32_t maxComputeWorkGroupCount = device.properties.limits.maxComputeWorkGroupCount[0];
     if (maxComputeWorkGroupCount > 65536) maxComputeWorkGroupCount = 65536;
@@ -177,6 +187,15 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
     double quotient = static_cast<double>(maxComputeWorkGroupCount) / workgroup_size;
 
     uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
+
+    // workgroup_size = 64;
+    // workgroups = 1;
+
+    // run(device, workgroups, workgroup_size, test_iters, 0);
+    // run(device, workgroups, workgroup_size, test_iters, 1);
+
+    // workgroup_size = 64;
+    // workgroups = 64;
 
     run(device, workgroups, workgroup_size, test_iters, 0);
     run(device, workgroups, workgroup_size, test_iters, 1);
@@ -196,6 +215,7 @@ int main() {
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
 
+        if (i == 1) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_rmw_tests(device);
