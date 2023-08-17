@@ -1,5 +1,5 @@
 CXXFLAGS = -std=c++17
-CLSPVFLAGS = --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points
+CLSPVFLAGS = --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points -O0
 
 SHADERS = $(wildcard *.cl)
 SPVS = $(patsubst %.cl,build/%.spv,$(SHADERS))
