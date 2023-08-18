@@ -44,18 +44,18 @@ ax.set_xticklabels(x_values)
 ax.set_yticklabels(y_values)
 
 # Rotate x-axis labels for better readability
-# plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+plt.setp(ax.get_xticklabels(), rotation=25, ha="center", rotation_mode="anchor", fontsize=6)
 
-# Display actual values in the heatmap
+#Display actual values in the heatmap
 for i in range(len(y_values)):
     for j in range(len(x_values)):
-        ax.text(j, i, str(int(matrix[i, j])), ha='center', va='center', color='w')
+        ax.text(j, i, str(int(matrix[i, j])), ha='center', va='center', color='w', fontsize=6)
 
 ax.set_xlabel('localMemSize')
 ax.set_ylabel('workgroupSize')
 
 
-ax.set_title(f"Occupancy Bound - {data['deviceName']} - numWorkgroups = 4096")
+ax.set_title(f"Occupancy Bound - {data['deviceName']}")
 
 plt.tight_layout()
 
