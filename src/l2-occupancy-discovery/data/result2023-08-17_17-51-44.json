@@ -1,0 +1,2319 @@
+{
+    "testName": "Occupancy Discovery",
+    "deviceName": "AMD Radeon RX 7900 XT (RADV GFX1100)",
+    "numWorkgroups": 4096,
+    "results": [
+        {
+            "maxOccupancyBound": 2688,
+            "avgOccupancyBound": 2688.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 2688,
+            "avgOccupancyBound": 2688.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1146,
+            "avgOccupancyBound": 1110.25,
+            "stdDev": 15.396834090162821,
+            "CV": 0.013867898302330846,
+            "workgroupSize": 384,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 630,
+            "avgOccupancyBound": 630.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1045,
+            "avgOccupancyBound": 1018.125,
+            "stdDev": 17.58861492557046,
+            "CV": 0.017275496550590998,
+            "workgroupSize": 640,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 588,
+            "avgOccupancyBound": 588.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 967,
+            "avgOccupancyBound": 934.5625,
+            "stdDev": 19.419605911294905,
+            "CV": 0.020779354950894034,
+            "workgroupSize": 896,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1343.9375,
+            "stdDev": 0.24206145913796356,
+            "CV": 0.00018011362815455596,
+            "workgroupSize": 960,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 546,
+            "avgOccupancyBound": 546.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 0
+        },
+        {
+            "maxOccupancyBound": 2688,
+            "avgOccupancyBound": 2688.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 2688,
+            "avgOccupancyBound": 2688.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1131,
+            "avgOccupancyBound": 1105.8125,
+            "stdDev": 14.663810683106899,
+            "CV": 0.013260666417775978,
+            "workgroupSize": 384,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 630,
+            "avgOccupancyBound": 630.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1050,
+            "avgOccupancyBound": 1022.9375,
+            "stdDev": 18.83636360208626,
+            "CV": 0.01841399264577382,
+            "workgroupSize": 640,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 588,
+            "avgOccupancyBound": 588.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 970,
+            "avgOccupancyBound": 934.625,
+            "stdDev": 20.823289245457836,
+            "CV": 0.022279833350764035,
+            "workgroupSize": 896,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 546,
+            "avgOccupancyBound": 546.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 512
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1133,
+            "avgOccupancyBound": 1109.4375,
+            "stdDev": 17.032941429770727,
+            "CV": 0.015352772400221487,
+            "workgroupSize": 384,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 630,
+            "avgOccupancyBound": 630.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1052,
+            "avgOccupancyBound": 1028.8125,
+            "stdDev": 14.209234453340546,
+            "CV": 0.013811296473692287,
+            "workgroupSize": 640,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 588,
+            "avgOccupancyBound": 588.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1344.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 971,
+            "avgOccupancyBound": 929.75,
+            "stdDev": 22.060994991160303,
+            "CV": 0.02372787845244453,
+            "workgroupSize": 896,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 1344,
+            "avgOccupancyBound": 1343.9375,
+            "stdDev": 0.24206145913796356,
+            "CV": 0.00018011362815455596,
+            "workgroupSize": 960,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 546,
+            "avgOccupancyBound": 546.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 1024
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 881.9375,
+            "stdDev": 0.24206145913796356,
+            "CV": 0.0002744655478851546,
+            "workgroupSize": 384,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 630,
+            "avgOccupancyBound": 630.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 879.875,
+            "stdDev": 1.8666480653835098,
+            "CV": 0.0021214923317329276,
+            "workgroupSize": 640,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 588,
+            "avgOccupancyBound": 588.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 877,
+            "avgOccupancyBound": 863.875,
+            "stdDev": 9.29297449689818,
+            "CV": 0.01075731384389892,
+            "workgroupSize": 896,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 882,
+            "avgOccupancyBound": 882.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 546,
+            "avgOccupancyBound": 546.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 1536
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 630,
+            "avgOccupancyBound": 630.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 588,
+            "avgOccupancyBound": 588.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 671.9375,
+            "stdDev": 0.24206145913796356,
+            "CV": 0.00036024400950678237,
+            "workgroupSize": 896,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 672,
+            "avgOccupancyBound": 672.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 546,
+            "avgOccupancyBound": 546.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 2048
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 504,
+            "avgOccupancyBound": 504.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 2560
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 420,
+            "avgOccupancyBound": 420.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 3072
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 378,
+            "avgOccupancyBound": 378.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 3584
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 336,
+            "avgOccupancyBound": 336.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 4096
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 294,
+            "avgOccupancyBound": 294.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 4608
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 252,
+            "avgOccupancyBound": 252.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 5120
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 5632
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 210,
+            "avgOccupancyBound": 210.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 6144
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 6656
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 7168
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 7680
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 64,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 128,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 192,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 256,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 320,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 384,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 448,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 512,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 576,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 640,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 704,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 768,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 832,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 896,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 960,
+            "localMemSize": 8192
+        },
+        {
+            "maxOccupancyBound": 168,
+            "avgOccupancyBound": 168.0,
+            "stdDev": 0.0,
+            "CV": 0.0,
+            "workgroupSize": 1024,
+            "localMemSize": 8192
+        }
+    ]
+}
