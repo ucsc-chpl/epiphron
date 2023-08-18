@@ -5,6 +5,13 @@
 
 #include "json.h"
 
+
+#ifdef __ANDROID__
+#define USE_VALIDATION_LAYERS false
+#else
+#define USE_VALIDATION_LAYERS true
+#endif
+
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
 
@@ -95,7 +102,7 @@ double calculate_coeff_variation(const std::vector<double>& values) {
 
 void ticket_lock_test(size_t deviceIndex) {
 	// Set up instance.
-	auto instance = easyvk::Instance(true);
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 
     // Select device.
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
@@ -187,7 +194,7 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     ordered_json testResults;
 
 	// Set up instance.
-	auto instance = easyvk::Instance(true);
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 
     // Select device.
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
@@ -198,6 +205,7 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     ;
     auto entry_point = "occupancy_discovery";
     modifyLocalMemSize(spvCode, localMemSize);
+
 
     uint32_t maxOccupancyBound = 0;
     std::vector<double> trials(numTrials);
@@ -260,7 +268,7 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
 
 void global_barrier_benchmark(size_t deviceIndex, size_t numWorkgroups, size_t workgroupSize, size_t numIters) {
 	// Set up instance.
-	auto instance = easyvk::Instance(true);
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 
     // Select device.
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
@@ -341,7 +349,7 @@ int main(int argc, char* argv[]) {
     auto deviceIndex = 0;
 
     // Query device properties.
-	auto instance = easyvk::Instance(true);
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
     auto deviceName = device.properties.deviceName;
     // Divide by four because we are using buffers of uint32_t
@@ -357,12 +365,12 @@ int main(int argc, char* argv[]) {
     testResults["testName"] = "Occupancy Discovery";
     testResults["deviceName"] = deviceName;
 
-    auto numTrials = 16;
-    auto numWorkgroups = 1024 * 4;
+    auto numTrials = 4;
+    auto numWorkgroups = 1024;
     testResults["numWorkgroups"] = numWorkgroups;
     auto numIters = 1024;
-    auto workgroupStepSize = maxWorkgroupSize / 16;
-    auto localMemStepSize = maxLocalMemSize / 16;
+    auto workgroupStepSize = maxWorkgroupSize / 8;
+    auto localMemStepSize = maxLocalMemSize / 8;
 
     std::vector<ordered_json> res;
     for (int localMemSize = 0; 
