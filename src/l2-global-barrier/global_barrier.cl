@@ -91,8 +91,6 @@ __kernel void global_barrier(__global uint *count,
         // iteration. A safe and correct barrier is necessary to ensure that there 
         // are no data races and every iteration each workgroup is writing to it's 
         // own memory location.
-        // NOTE: This is assuming that there are at least as many threads per 
-        // workgroup as there are participating workgroups!.
         if (get_local_id(0) == 0) {
             // Only one thread within the workgroup does the work.
             output_buf[(p_group_id + i) % p_num_groups]++;
