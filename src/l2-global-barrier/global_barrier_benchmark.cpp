@@ -5,7 +5,6 @@
 
 #include "json.h"
 
-
 #ifdef __ANDROID__
 #define USE_VALIDATION_LAYERS false
 #else
@@ -248,39 +247,27 @@ ordered_json kernel_barrier_benchmark(size_t deviceIndex,
 
     // Loader shader code.
     std::vector<uint32_t> spvCode = 
-    #include "build/global_barrier.cinit"
+    #include "build/kernel_barrier.cinit"
     ;
-    auto entry_point = "global_barrier";
+    auto entry_point = "kernel_barrier";
 
     std::vector<double> trials(numTrials);
     for (int i = 0; i < numTrials; i++) {
         // Set up buffers.
-        auto count_buf = easyvk::Buffer(device, 1);
-        auto poll_open_buf = easyvk::Buffer(device, 1);
-        auto M_buf = easyvk::Buffer(device, numWorkgroups);
-        auto now_serving_buf = easyvk::Buffer(device, 1);
-        auto next_ticket_buf = easyvk::Buffer(device, 1);
-        auto flag_buf = easyvk::Buffer(device, numWorkgroups);
         auto output_buf = easyvk::Buffer(device, numWorkgroups);
-        auto num_iters_buf = easyvk::Buffer(device, 1);
-        count_buf.store(0, 0);
-        poll_open_buf.store(0, 1); // Poll is initially open.
-        next_ticket_buf.store(0, 0);
-        now_serving_buf.store(0, 0);
-        num_iters_buf.store(0, numIters);
+        auto iter_buf = easyvk::Buffer(device, 1);
+        // For some reason get_num_groups(0) wasn't working in the kernel, so I'm
+        // passing that info just via a kernel arg.
+        auto num_workgroups_buf = easyvk::Buffer(device, 1);
+        num_workgroups_buf.store(0, numWorkgroups);
+        iter_buf.store(0, 0);
         for (int j = 0; j < numWorkgroups; j++) {
-            flag_buf.store(j, 0);
             output_buf.store(j, 0);
         }
 
-        std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
-                                                    poll_open_buf,
-                                                    M_buf,
-                                                    now_serving_buf,
-                                                    next_ticket_buf,
-                                                    flag_buf,
-                                                    output_buf,
-                                                    num_iters_buf};
+        std::vector<easyvk::Buffer> kernelInputs = {output_buf,
+                                                    iter_buf,
+                                                    num_workgroups_buf};
 
         // Initialize the kernel.
         auto program = easyvk::Program(device, spvCode, kernelInputs);
@@ -288,12 +275,18 @@ ordered_json kernel_barrier_benchmark(size_t deviceIndex,
         program.setWorkgroupSize(workgroupSize);
         program.initialize(entry_point);
 
-        // Launch kernel.
-        auto kernelTime = program.runWithDispatchTiming();
-        trials[i] = kernelTime / (double) 1000.0; // Convert to us
+        auto startTime = high_resolution_clock::now();
+        for (int j = 0; j < numIters; j++) {
+            // Use kernel launch strategy for workgroup synchronization.
+            program.run();
+            iter_buf.store(0, iter_buf.load(0) + 1);
+        }
+        auto timeElapsed = duration_cast<microseconds>(
+            high_resolution_clock::now() - startTime).count();
+        trials[i] = timeElapsed;
 
         // Check the safety and correctness of the barrier.
-        for (int j = 0; j < count_buf.load(0); j++) {
+        for (int j = 0; j < numWorkgroups; j++) {
             // Each position in the buf corresponding to a participating workgroup 
             // should be incremented exactly numIters times.
             assert(output_buf.load(i) == numIters);
@@ -301,14 +294,8 @@ ordered_json kernel_barrier_benchmark(size_t deviceIndex,
 
         // Cleanup.
         program.teardown();
-        count_buf.teardown();
-        poll_open_buf.teardown();
-        M_buf.teardown();
-        next_ticket_buf.teardown();
-        now_serving_buf.teardown();
-        flag_buf.teardown();
         output_buf.teardown();
-        num_iters_buf.teardown(); 
+        iter_buf.teardown(); 
     }
 
     // Save benchmark results to JSON.
@@ -324,7 +311,6 @@ ordered_json kernel_barrier_benchmark(size_t deviceIndex,
 
     return testResults;
 }
-
 
 
 int main(int argc, char* argv[]) {
@@ -349,7 +335,7 @@ int main(int argc, char* argv[]) {
 
     auto numWorkgroups = 1024;
     auto workgroupSize = 256;
-    auto numIters = 1024;
+    auto numIters = 512;
     auto numTrials = 32;
 
     auto globalBarrierResults = global_barrier_benchmark(deviceIndex, 
@@ -357,7 +343,20 @@ int main(int argc, char* argv[]) {
                                                          workgroupSize,
                                                          numIters,
                                                          numTrials);
-    std::cout << globalBarrierResults.dump(4) << "\n";
+    globalBarrierResults["numIters"] = numIters;
+    globalBarrierResults["numWorkgroups"] = numWorkgroups;
+    globalBarrierResults["workgroupSize"] = workgroupSize;
+    auto kernelBarrierResults = kernel_barrier_benchmark(deviceIndex,
+                                                         numWorkgroups,
+                                                         workgroupSize,
+                                                         numIters,
+                                                         numTrials);
+    kernelBarrierResults["numIters"] = numIters;
+    kernelBarrierResults["numWorkgroups"] = numWorkgroups;
+    kernelBarrierResults["workgroupSize"] = workgroupSize;
+
+    testResults["kernelBarrierResults"] = kernelBarrierResults;
+    testResults["globalBarrierResults"] = globalBarrierResults;
 
 	// Write results to file.
 	// Get current time
@@ -378,7 +377,6 @@ int main(int argc, char* argv[]) {
 	} else {
 		std::cerr << "Failed to write test results to file!\n";
 	}
-
 
 	return 0;
 }
