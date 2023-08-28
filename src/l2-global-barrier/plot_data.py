@@ -21,8 +21,8 @@ def plot_from_json(filename):
 
     # Create the plot
     plt.bar(categories, avg_times, yerr=std_devs, color=['blue', 'green'], align='center', alpha=0.7, capsize=10)
-    plt.ylabel('Average Time')
-    plt.title('Comparison of Average Times with Error Bars')
+    plt.ylabel('Average Time (µs)')
+    plt.title(f'{data["deviceName"]} - Kernel vs Global Barrier Throughput')
     
     # Save the plot
     plot_filename = filename.split(".")[0] + ".png"
