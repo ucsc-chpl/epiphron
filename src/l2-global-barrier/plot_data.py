@@ -1,62 +1,38 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import json
+import matplotlib.pyplot as plt
 import sys
 
-# Check if filename is provided
-if len(sys.argv) < 2:
-    print("Usage: script_name.py <filename>")
-    sys.exit(1)
+def plot_from_json(filename):
+    # Load JSON data
+    with open(filename, 'r') as f:
+        data = json.load(f)
 
-filename = sys.argv[1]
-
-# Load data from the file
-with open(filename, 'r') as file:
-    data = json.load(file)
-
+    # Extract avgTime and timeStdDev from the JSON data
+    kernel_avg_time = data['kernelBarrierResults']['avgTime']
+    kernel_time_stddev = data['kernelBarrierResults']['timeStdDev']
     
-# Extract unique x and y axis values and sort them
-x_values = sorted(list(set(item['localMemSize'] for item in data['results'])))
-y_values = sorted(list(set(item['workgroupSize'] for item in data['results'])))
+    global_avg_time = data['globalBarrierResults']['avgTime']
+    global_time_stddev = data['globalBarrierResults']['timeStdDev']
 
-# Initialize an empty matrix
-matrix = np.zeros((len(y_values), len(x_values)))
+    # Data for plotting
+    categories = ['Kernel Barrier', 'Global Barrier']
+    avg_times = [kernel_avg_time, global_avg_time]
+    std_devs = [kernel_time_stddev, global_time_stddev]
 
-# Fill in the matrix
-for item in data['results']:
-    x_index = x_values.index(item['localMemSize'])
-    y_index = y_values.index(item['workgroupSize'])
-    matrix[y_index, x_index] = item['maxOccupancyBound']
+    # Create the plot
+    plt.bar(categories, avg_times, yerr=std_devs, color=['blue', 'green'], align='center', alpha=0.7, capsize=10)
+    plt.ylabel('Average Time')
+    plt.title('Comparison of Average Times with Error Bars')
+    
+    # Save the plot
+    plot_filename = filename.split(".")[0] + ".png"
+    plt.savefig(plot_filename)
+    print(f"Plot saved as {plot_filename}")
 
-# Create the heatmap
-fig, ax = plt.subplots()
-cax = ax.matshow(matrix, cmap='viridis')
-
-# Add colorbar
-cbar = fig.colorbar(cax)
-
-# Set ticks
-ax.set_xticks(np.arange(len(x_values)))
-ax.set_yticks(np.arange(len(y_values)))
-
-# Set tick labels
-ax.set_xticklabels(x_values)
-ax.set_yticklabels(y_values)
-
-# Rotate x-axis labels for better readability
-plt.setp(ax.get_xticklabels(), rotation=25, ha="center", rotation_mode="anchor", fontsize=6)
-
-#Display actual values in the heatmap
-for i in range(len(y_values)):
-    for j in range(len(x_values)):
-        ax.text(j, i, str(int(matrix[i, j])), ha='center', va='center', color='w', fontsize=6)
-
-ax.set_xlabel('localMemSize')
-ax.set_ylabel('workgroupSize')
-
-
-ax.set_title(f"Occupancy Bound - {data['deviceName']}")
-
-plt.tight_layout()
-
-plt.savefig('out.png')
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: script_name.py <json_filename>")
+        sys.exit(1)
+    
+    filename = sys.argv[1]
+    plot_from_json(filename)
