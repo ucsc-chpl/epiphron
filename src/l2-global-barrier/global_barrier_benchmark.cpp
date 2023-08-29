@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iostream>
 #include <easyvk.h>
+#include <format>
 
 #include "json.h"
 
@@ -58,7 +59,6 @@ void ticket_lock_test(size_t deviceIndex) {
 
     // Select device.
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
-    std::cout << "Device name: " << device.properties.deviceName << "\n";
 
     // Loader shader code.
     std::vector<uint32_t> spvCode = 
@@ -94,11 +94,7 @@ void ticket_lock_test(size_t deviceIndex) {
 
     // Each thread increments the counter 256 times, so the value of the counter 
     // after the kernel runs should be numWorkgroups * workgroupSize * 256
-    // assert(counter_buf.load(0) == numWorkgroups * workgroupSize * 256);
-    std::cout << "numWorkgroups: " << numWorkgroups << "\n";
-    std::cout << "workgroupSize: " << workgroupSize << "\n";
-    std::cout << "Expected counter:  " << numWorkgroups * workgroupSize * 256 << "\n";
-    std::cout << "Global counter: " << counter_buf.load(0) << "\n";
+    assert(counter_buf.load(0) == numWorkgroups * workgroupSize * 256);
 
     // Calculate lock fairness (cv should be around 0).
     auto hist_values = std::vector<double>(numWorkgroups * workgroupSize);
@@ -106,7 +102,6 @@ void ticket_lock_test(size_t deviceIndex) {
         hist_values.emplace_back(histogram_buf.load(i));
     }
     auto cv = calculate_coeff_variation(hist_values);
-    std::cout << "coeff. of variation (fairness): " << cv << "\n";
 
 	// Cleanup.
     program.teardown();
@@ -149,6 +144,7 @@ ordered_json global_barrier_benchmark(size_t deviceIndex,
     auto entry_point = "global_barrier";
 
     std::vector<double> trials(numTrials);
+    int maxOccupancyBound = -1;
     for (int i = 0; i < numTrials; i++) {
         // Set up buffers.
         auto count_buf = easyvk::Buffer(device, 1);
@@ -185,14 +181,23 @@ ordered_json global_barrier_benchmark(size_t deviceIndex,
         program.initialize(entry_point);
 
         // Launch kernel.
-        auto kernelTime = program.runWithDispatchTiming();
-        trials[i] = kernelTime / (double) 1000.0; // Convert to us
+        // auto kernelTime = program.runWithDispatchTiming();
+        // trials[i] = kernelTime / (double) 1000.0; // Convert to us
+        auto startTime = high_resolution_clock::now();
+        program.run();
+        auto timeElapsed = duration_cast<microseconds>(high_resolution_clock::now() - startTime).count();
+        trials[i] = timeElapsed;
 
         // Check the safety and correctness of the barrier.
         for (int j = 0; j < count_buf.load(0); j++) {
             // Each position in the buf corresponding to a participating workgroup 
             // should be incremented exactly numIters times.
             assert(output_buf.load(i) == numIters);
+        }
+
+        // Save the maximum measured occupancy bound.
+        if ((int) count_buf.load(0) > maxOccupancyBound) {
+            maxOccupancyBound = count_buf.load(0);
         }
 
         // Cleanup.
@@ -214,6 +219,7 @@ ordered_json global_barrier_benchmark(size_t deviceIndex,
     testResults["avgTime"] = avgTime;
     testResults["timeStdDev"] = timeStdDev;
     testResults["timeCV"] = timeCV;
+    testResults["occupancyBound"] = maxOccupancyBound;
 
     device.teardown();
     instance.teardown();
@@ -312,19 +318,107 @@ ordered_json kernel_barrier_benchmark(size_t deviceIndex,
     return testResults;
 }
 
+// TODO: Implement me!
+/**
+ * @brief Runs the primitive barrier benchmark.
+ * 
+ * @param deviceIndex     Index of the physical device to use for the test.
+ * @param numWorkgroups   Number of workgroups to launch for the benchmark.
+ * @param workgroupSize   Size of each workgroup that will be launched.
+ * @param numIters        Number of iterations that the barrier will be invoked in each trial.
+ * @param numTrials       Number of times the entire test will be repeated.
+ * 
+ * @return ordered_json   JSON object containing the benchmark results.
+ */
+ordered_json primitive_barrier_benchmark(size_t deviceIndex, 
+                                         size_t numWorkgroups,
+                                         size_t workgroupSize, 
+                                         size_t numIters,
+                                         size_t numTrials) {
+	// Set up instance.
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
+
+    ordered_json testResults;
+
+    // Select device.
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+
+    // Loader shader code.
+    std::vector<uint32_t> spvCode = 
+    #include "build/kernel_barrier.cinit"
+    ;
+    auto entry_point = "kernel_barrier";
+
+    std::vector<double> trials(numTrials);
+    for (int i = 0; i < numTrials; i++) {
+        // Set up buffers.
+        auto output_buf = easyvk::Buffer(device, numWorkgroups);
+        auto iter_buf = easyvk::Buffer(device, 1);
+        // For some reason get_num_groups(0) wasn't working in the kernel, so I'm
+        // passing that info just via a kernel arg.
+        auto num_workgroups_buf = easyvk::Buffer(device, 1);
+        num_workgroups_buf.store(0, numWorkgroups);
+        iter_buf.store(0, 0);
+        for (int j = 0; j < numWorkgroups; j++) {
+            output_buf.store(j, 0);
+        }
+
+        std::vector<easyvk::Buffer> kernelInputs = {output_buf,
+                                                    iter_buf,
+                                                    num_workgroups_buf};
+
+        // Initialize the kernel.
+        auto program = easyvk::Program(device, spvCode, kernelInputs);
+        program.setWorkgroups(numWorkgroups);
+        program.setWorkgroupSize(workgroupSize);
+        program.initialize(entry_point);
+
+        auto startTime = high_resolution_clock::now();
+        for (int j = 0; j < numIters; j++) {
+            // Use kernel launch strategy for workgroup synchronization.
+            program.run();
+            iter_buf.store(0, iter_buf.load(0) + 1);
+        }
+        auto timeElapsed = duration_cast<microseconds>(
+            high_resolution_clock::now() - startTime).count();
+        trials[i] = timeElapsed;
+
+        // Check the safety and correctness of the barrier.
+        for (int j = 0; j < numWorkgroups; j++) {
+            // Each position in the buf corresponding to a participating workgroup 
+            // should be incremented exactly numIters times.
+            assert(output_buf.load(i) == numIters);
+        }
+
+        // Cleanup.
+        program.teardown();
+        output_buf.teardown();
+        iter_buf.teardown(); 
+    }
+
+    // Save benchmark results to JSON.
+    auto avgTime = calculate_average(trials);
+    auto timeStdDev = calculate_std_dev(trials);
+    auto timeCV = calculate_coeff_variation(trials);
+    testResults["avgTime"] = avgTime;
+    testResults["timeStdDev"] = timeStdDev;
+    testResults["timeCV"] = timeCV;
+
+    device.teardown();
+    instance.teardown();
+
+    return testResults;
+}
+
 
 int main(int argc, char* argv[]) {
-    auto deviceIndex = 0;
+    // Select which device to use.
+    auto deviceIndex = 3;
 
     // Query device properties.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
     auto deviceName = device.properties.deviceName;
-    // Divide by four because we are using buffers of uint32_t
-    auto maxLocalMemSize = device.properties.limits.maxComputeSharedMemorySize / 4;
-    auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
-    // std::cout << "maxLocalMemSize: " << maxLocalMemSize << "\n";
-    // std::cout << "maxWorkgroupSize: " << maxWorkgroupSize << "\n";
     device.teardown();
     instance.teardown();
 
@@ -332,11 +426,16 @@ int main(int argc, char* argv[]) {
     ordered_json testResults;
     testResults["testName"] = "Global Barrier";
     testResults["deviceName"] = deviceName;
+    testResults["apiVersion"] = device.properties.apiVersion;
+    testResults["driverVersion"] = device.properties.driverVersion;
 
+    // Benchmark parameters.
     auto numWorkgroups = 1024;
     auto workgroupSize = 256;
-    auto numIters = 512;
+    auto numIters = 1024 * 1;
     auto numTrials = 32;
+
+    ticket_lock_test(deviceIndex); // First, run the ticket lock test.
 
     auto globalBarrierResults = global_barrier_benchmark(deviceIndex, 
                                                          numWorkgroups, 
@@ -346,13 +445,16 @@ int main(int argc, char* argv[]) {
     globalBarrierResults["numIters"] = numIters;
     globalBarrierResults["numWorkgroups"] = numWorkgroups;
     globalBarrierResults["workgroupSize"] = workgroupSize;
+
+    // For the kernel barrier, use the same number of workgroups that were occupant during
+    // the global barrier. 
     auto kernelBarrierResults = kernel_barrier_benchmark(deviceIndex,
-                                                         numWorkgroups,
+                                                         globalBarrierResults["occupancyBound"],
                                                          workgroupSize,
                                                          numIters,
                                                          numTrials);
     kernelBarrierResults["numIters"] = numIters;
-    kernelBarrierResults["numWorkgroups"] = numWorkgroups;
+    kernelBarrierResults["numWorkgroups"] = globalBarrierResults["occupancyBound"];
     kernelBarrierResults["workgroupSize"] = workgroupSize;
 
     testResults["kernelBarrierResults"] = kernelBarrierResults;
