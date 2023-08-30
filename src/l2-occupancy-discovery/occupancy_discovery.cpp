@@ -139,7 +139,6 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     auto entry_point = "occupancy_discovery";
     modifyLocalMemSize(spvCode, localMemSize);
 
-
     uint32_t maxOccupancyBound = 0;
     std::vector<double> trials(numTrials);
     for (int i = 0; i < numTrials; i++) {

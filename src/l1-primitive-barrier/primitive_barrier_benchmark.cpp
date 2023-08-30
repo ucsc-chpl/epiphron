@@ -35,7 +35,7 @@ double calculate_std_dev(const std::vector<double>& values) {
 }
 
 std::vector<int> getWorkgroupSizes(size_t maxWorkgroupSize) {
-	std::vector<int> workgroupSizes = {1};
+	std::vector<int> workgroupSizes;
 	for (int n = 8; n <= 128; n += 8) {
 		workgroupSizes.emplace_back(n);
 	}
@@ -421,12 +421,12 @@ ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
 
 int main(int argc, char* argv[]) {
 	// Initialize 
-	auto instance = easyvk::Instance(false);
+	auto instance = easyvk::Instance(true);
 
 	auto numTrials = 32;
-	auto deviceIndex = 0; 
-	auto numWorkgroups = 16;
-	auto numIters = 512; // # of iterations to run kernel loop
+	auto deviceIndex = 3; 
+	auto numWorkgroups = 64;
+	auto numIters = 512 * 1; // # of iterations to run kernel loop
 	auto _ = no_barrier_benchmark(instance, deviceIndex, 16, numWorkgroups, 512); // warmup GPU
 
 	std::cout << "Starting no_barrier benchmark..." << std::endl;

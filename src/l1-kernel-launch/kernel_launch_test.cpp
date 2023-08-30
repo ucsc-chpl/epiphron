@@ -155,7 +155,6 @@ ordered_json run_varied_thread_workload_benchmark(easyvk::Device device,
 			utilizationData[i] = (gpuTime / (double)1000.0) / cpuTime;
 		}
 
-
 		auto avgGpuTimeInMicroseconds = calculate_average(gpuTimes) / 1000.0;
 		auto avgCpuTimeInMicroseconds = calculate_average(cpuTimes);
 
@@ -208,9 +207,9 @@ ordered_json run_varied_thread_workload_benchmark(easyvk::Device device,
 * @return JSON object containing the benchmark results.
 */
 ordered_json run_varied_dispatch_benchmark(easyvk::Device device, 
-                                   size_t numTrialsPerTest,
-								   size_t maxWorkGroupInvocations,
-								   size_t workGroupSize) {
+									       size_t numTrialsPerTest,
+								           size_t maxWorkGroupInvocations,
+								     	   size_t workGroupSize) {
 	// Save results to JSON
 	std::vector<ordered_json> testData;
 
@@ -311,12 +310,10 @@ int main(int argc, char* argv[]) {
 
 	// Run benchmark on every physical device available.
 	for (size_t i= 0; i < physicalDevices.size(); i++) {
-		if (i == 1) {
-			// TODO: Don't use NVIDIA device until watchdog issue is fixed (only works for Waterthrush)
+		// Select logical device.
+		if (i != 1) {
 			continue;
 		}
-
-		// Select logical device.
 		auto device = easyvk::Device(instance, physicalDevices.at(i));
 		std::cout << "\nUsing device: " << device.properties.deviceName << "\n";
 
@@ -336,7 +333,7 @@ int main(int argc, char* argv[]) {
 		auto variedDispatchResults = run_varied_dispatch_benchmark(
 			device,
 			numTrials,
-			device.properties.limits.maxComputeWorkGroupCount[0],
+			8 * 32 * 1024,
 			workGroupSize
 		);
 		deviceRun["variedDispatch"] = variedDispatchResults;
@@ -344,7 +341,7 @@ int main(int argc, char* argv[]) {
 
 		// Run fixed dispatch vector addition test.
 		auto numWorkGroups = 8;
-		auto maxThreadWorkload = 1024 * 8;
+		auto maxThreadWorkload = 1024;
 		std::cout << "Running varied thread workload test...\n";
 		auto variedThreadWorkloadResults = run_varied_thread_workload_benchmark(
 			device,
