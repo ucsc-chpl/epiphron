@@ -2,7 +2,6 @@
 #include <chrono>
 #include <iostream>
 #include <easyvk.h>
-#include <format>
 
 #include "json.h"
 
@@ -430,9 +429,9 @@ int main(int argc, char* argv[]) {
     testResults["driverVersion"] = device.properties.driverVersion;
 
     // Benchmark parameters.
-    auto numWorkgroups = 1024;
-    auto workgroupSize = 256;
-    auto numIters = 1024 * 1;
+    auto numWorkgroups = 256;
+    auto workgroupSize = 64;
+    auto numIters = 512 * 1;
     auto numTrials = 32;
 
     ticket_lock_test(deviceIndex); // First, run the ticket lock test.
