@@ -59,4 +59,8 @@ ax.set_title(f"Occupancy Bound - {data['deviceName']}")
 
 plt.tight_layout()
 
-plt.savefig('out.png')
+# Save plot.
+plot_filename = filename.split(".")[0] + ".png"
+
+plt.savefig(plot_filename)
+print(f"Plot saved as {plot_filename}")
