@@ -110,38 +110,90 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
     return rate;
 }
 
+extern "C" float striding_performance_model(float peak_throughput, uint32_t X, uint32_t C, uint32_t P) {
+    if ((C <= X) && P == 1) {
+        return peak_throughput;
+    } 
+    if ((C >= (P * X)) && (P >= 1 && P <= X/4)) {
+        return peak_throughput * static_cast<float>(X) / static_cast<float>(C);
+    } 
+    else if (((X * P) > C) && (P > 1 && P <= X/4)) {
+        return peak_throughput / static_cast<float>(P);
+    }
+    else if (P > X/4) {
+        return peak_throughput / 20.0;
+    }
+    return 0.0;
+}
+
 extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist) {
 
     string folder;
     if (thread_dist) folder = "chunking";
     else folder = "striding";
-    vector<uint32_t> spv_code_relaxed, spv_code_acq_rel;
+    vector<uint32_t> spv_code;
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
     sprintf(currentTest, ", %s: global_fetch_add_relaxed\n", folder.c_str());
-    spv_code_relaxed = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
-    spv_code_acq_rel = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
+    spv_code = getSPVCode(folder + "/atomic_fa_relaxed.cinit");
     benchmarkData << currentTest;
 
     // Contention/Padding Values
     list<uint32_t> test_values;
-    //For only testing global memory 
-    uint32_t max_pair;
-    if (workgroup_size * workgroups > 32768) max_pair = 32768;
-    else max_pair = workgroup_size * workgroups;
 
-    for (uint32_t i = 1; i <= max_pair; i *= 2) {
+
+    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
         test_values.push_back(i);  
     } 
+
+    // Find Peak
+    float peak_throughput = 0.0;
+    for (uint32_t c = 1; c <= 64; c *= 2) { 
+        uint32_t contention = c;
+        uint32_t padding = 1;
+        const int size = ((workgroup_size * workgroups) * padding) / contention;
+        uint32_t rmw_iters = 64;
+        float curr_throughput = 0.0;
+        Buffer resultBuf = Buffer(device, size);
+        Buffer sizeBuf = Buffer(device, 1);
+        Buffer paddingBuf = Buffer(device, 1);
+        Buffer rmwItersBuf = Buffer(device, 1);
+        Buffer contentionBuf = Buffer(device, 1);
+        sizeBuf.store(0, size);
+        paddingBuf.store(0, padding);
+        contentionBuf.store(0, contention);
+        while(true) {
+            rmwItersBuf.store(0, rmw_iters);
+            resultBuf.clear();
+            vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
+            if (thread_dist) { // Chunking
+                buffers.emplace_back(contentionBuf);
+                curr_throughput = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+            } else { // Striding
+                buffers.emplace_back(sizeBuf);
+                curr_throughput = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+                //buffers.emplace_back(contentionBuf); //local striding
+            }
+            if (isinf(curr_throughput)) rmw_iters *= 2;
+            else break;
+        }
+        if (curr_throughput > peak_throughput) peak_throughput = curr_throughput;
+        resultBuf.teardown();
+        sizeBuf.teardown();
+        paddingBuf.teardown();
+        rmwItersBuf.teardown();
+        contentionBuf.teardown();
+    }
+    int errors = 0;
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
             uint32_t contention = *it1;
             uint32_t padding = *it2;
+            float expected_rate, observed_rate = 0.0;
             benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
-
+            expected_rate = striding_performance_model(peak_throughput, (workgroups * workgroup_size) / device.properties.limits.maxComputeWorkGroupInvocations, contention, padding);
             const int size = ((workgroup_size * workgroups) * padding) / contention;
             uint32_t rmw_iters = 64;
-            float rate_relaxed = 0.0, rate_acq_rel = 0.0;
             Buffer resultBuf = Buffer(device, size);
             Buffer sizeBuf = Buffer(device, 1);
             Buffer paddingBuf = Buffer(device, 1);
@@ -152,28 +204,36 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             contentionBuf.store(0, contention);
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
+                resultBuf.clear();
                 vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
                 if (thread_dist) { // Chunking
                     buffers.emplace_back(contentionBuf);
-                    //rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
-                    rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
+                    observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
                 } else { // Striding
                     buffers.emplace_back(sizeBuf);
-                    //rate_acq_rel = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_acq_rel, buffers);
-                    buffers.emplace_back(contentionBuf);
-                    rate_relaxed = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code_relaxed, buffers);
+                    observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+                    //buffers.emplace_back(contentionBuf); //local striding
                 }
-                if (isinf(rate_relaxed) || isinf(rate_acq_rel)) rmw_iters *= 2;
+                if (isinf(observed_rate)) rmw_iters *= 2;
                 else break;
+            }
+            // Buffer Validation
+            for (int access = 0; access < size; access += padding) {
+                if (resultBuf.load(access) != rmw_iters * test_iters * contention) errors += 1;
             }
             resultBuf.teardown();
             sizeBuf.teardown();
             paddingBuf.teardown();
             rmwItersBuf.teardown();
             contentionBuf.teardown();
-            benchmarkData << to_string(rate_relaxed) + ")" << endl;
+            if (expected_rate > observed_rate) {
+                benchmarkData << to_string(expected_rate/observed_rate) + ")" << endl;
+            } else {
+                benchmarkData << to_string(observed_rate/expected_rate) + ")" << endl;
+            }
         }
     }
+    log("Error count: %d\n", errors);
     return;
 }
 
@@ -184,21 +244,17 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
     if (maxComputeWorkGroupCount > 65536) maxComputeWorkGroupCount = 65536;
 
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
+    if (workgroup_size > 1024) workgroup_size = 1024;
+
     double quotient = static_cast<double>(maxComputeWorkGroupCount) / workgroup_size;
 
     uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
 
-    // workgroup_size = 64;
-    // workgroups = 1;
-
-    // run(device, workgroups, workgroup_size, test_iters, 0);
-    // run(device, workgroups, workgroup_size, test_iters, 1);
-
-    // workgroup_size = 64;
-    // workgroups = 64;
-
+    // Striding
     run(device, workgroups, workgroup_size, test_iters, 0);
-    run(device, workgroups, workgroup_size, test_iters, 1);
+
+    // Chunking
+    //run(device, workgroups, workgroup_size, test_iters, 1);
     return;
 }
 
@@ -215,7 +271,7 @@ int main() {
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
 
-        if (i == 1) continue;
+        if (i != 0) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_rmw_tests(device);

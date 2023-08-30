@@ -18,8 +18,8 @@ def generate_heatmap(coordinates, title):
  workgroup_size = int(workgroup_information[0])
  workgroups = int(workgroup_information[1])
  final_size = 0
- if workgroup_size * workgroups > 32768:
-    final_size = 32768
+ if workgroup_size * workgroups > 1024:
+    final_size = 1024
  else:
     final_size = workgroup_size * workgroups
  grid_scale = int(math.log2(final_size)) + 1
@@ -60,8 +60,8 @@ def generate_heatmap(coordinates, title):
  # Add text annotations for data points
  for i in range(data_array.shape[0]):
     for j in range(data_array.shape[1]):
-        text = ax.text(j, i, int(data_array[i][j]),
-                    ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
+        text = ax.text(j, i, round(data_array[i][j], 2),
+                    ha="center", va="center", color="w", fontsize=4, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
  # Customize the color bar range
  cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[data_min, math.floor(data_max/3), math.floor(data_max/2), data_max])
