@@ -1,6 +1,6 @@
 #include <chrono>
 #include <iostream>
-#include <unordered_map>
+#include <thread>
 #include <easyvk.h>
 #include "json.h"
 
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
 	// Benchmark parameters.
 	auto numTrials = 32;
 	auto numWorkgroups = 64;
-	auto numIters = 1024 * 4; // # of iterations to run kernel loop
+	auto numIters = 256 * 1; // # of iterations to run kernel loop
 
 	// Run benchmark on every availible device.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
@@ -158,7 +158,7 @@ int main(int argc, char* argv[]) {
 
 		// "warm up" the GPU by giving it some initial work. If this is not done the 
 		// results of the first benchmark that is run will skewed for some reason.	
-		auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, numIters);
+		auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, 1024);
 
 		auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
 
@@ -187,6 +187,7 @@ int main(int argc, char* argv[]) {
 		} else {
 			std::cerr << "Failed to write test results to file!\n";
 		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 
 	// Cleanup instance
