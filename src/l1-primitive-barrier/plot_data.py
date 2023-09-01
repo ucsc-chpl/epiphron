@@ -20,7 +20,7 @@ colors = ['red', 'green', 'blue']
 
 fig, ax = plt.subplots()
 # No Barrier
-no_barrier_results = data["noBarrier"]["results"]
+no_barrier_results = data["noBarrier"]
 workgroup_sizes = [result["workgroupSize"] for result in no_barrier_results]
 avg_times = [result["avgTime"] for result in no_barrier_results]
 std_devs = [result["stdDev"] for result in no_barrier_results]
@@ -31,7 +31,7 @@ ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color
 ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
 
 # Local barrier
-local_barrier_results = data["localWorkgroupBarrier"]["results"]
+local_barrier_results = data["localWorkgroupBarrier"]
 workgroup_sizes = [result["workgroupSize"] for result in local_barrier_results]
 avg_times = [result["avgTime"] for result in local_barrier_results]
 std_devs = [result["stdDev"] for result in local_barrier_results]
@@ -42,7 +42,7 @@ ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color
 ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
 
 # Global barrier
-global_barrier_results = data["globalWorkgroupBarrier"]["results"]
+global_barrier_results = data["globalWorkgroupBarrier"]
 workgroup_sizes = [result["workgroupSize"] for result in global_barrier_results]
 avg_times = [result["avgTime"] for result in global_barrier_results]
 std_devs = [result["stdDev"] for result in global_barrier_results]
@@ -53,7 +53,7 @@ ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color
 ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
 
 # Subgroup local
-local_sub_res = data["localSubgroupBarrier"]["results"]
+local_sub_res = data["localSubgroupBarrier"]
 workgroup_sizes = [result["workgroupSize"] for result in local_sub_res]
 avg_times = [result["avgTime"] for result in local_sub_res]
 std_devs = [result["stdDev"] for result in local_sub_res]
@@ -64,7 +64,7 @@ ax.errorbar(workgroup_sizes, avg_times, yerr=std_devs, fmt='o', capsize=5, color
 ax.plot(workgroup_sizes, avg_times, marker='o', linestyle='-', color=color, label=label)
 
 # Subgroup global
-global_sub_res = data["globalSubgroupBarrier"]["results"]
+global_sub_res = data["globalSubgroupBarrier"]
 workgroup_sizes = [result["workgroupSize"] for result in global_sub_res]
 avg_times = [result["avgTime"] for result in global_sub_res]
 std_devs = [result["stdDev"] for result in global_sub_res]
@@ -94,7 +94,7 @@ ax.set_xlabel('Workgroup Size')
 # ax.set_xscale('log', base=2)
 ax.set_ylabel('Time (\u03BCs)')
 # workgroup_size = data['deviceRuns'][0]['variedDispatch']['workGroupSize']
-device = data["noBarrier"]["deviceName"]
+device = data["deviceName"]
 ax.set_title(f'numWorkgroups={data["numWorkgroups"]}, {device}')
 ax.legend()
 ax.grid(True)

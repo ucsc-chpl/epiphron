@@ -1,7 +1,14 @@
-#include<chrono>
+#include <chrono>
 #include <iostream>
+#include <unordered_map>
 #include <easyvk.h>
 #include "json.h"
+
+#ifdef __ANDROID__
+#define USE_VALIDATION_LAYERS false
+#else
+#define USE_VALIDATION_LAYERS true
+#endif
 
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
@@ -419,43 +426,117 @@ ordered_json workgroup_barrier_global_benchmark(easyvk::Instance instance,
 }
 
 
-int main(int argc, char* argv[]) {
-	// Initialize 
-	auto instance = easyvk::Instance(true);
+ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
+                                         size_t deviceIndex,
+									     size_t numTrials,
+										 size_t numWorkgroups,
+										 size_t numIters) {
 
-	auto numTrials = 32;
-	auto deviceIndex = 3; 
+	// Select device to use from the provided device index.
+	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+	auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+
+	// Load the kernel.
+	std::vector<uint32_t> kernelCode = 
+	#include "build/primitive_barrier.cinit"
+	;
+
+	// All bencmarks are contained in the single kernel and we can specify which 
+	// one to run by selecting the entry point.
+	std::vector<const char*> entryPoints = {
+        "noBarrier",
+        "localSubgroupBarrier",
+        "globalSubgroupBarrier",
+        "localWorkgroupBarrier",
+        "globalWorkgroupBarrier"
+    };
+
+	// Define the parameterization across workgroup sizes.
+	auto workgroupSizes = getWorkgroupSizes(maxWorkgroupSize);
+
+	// Save all results to a JSON object.
+	ordered_json primitiveBarrierBenchmarkResults;
+
+	// Set up and run each primitive barrier benchmark.
+    for (const auto& entryPoint : entryPoints) {
+		std::cout << "Starting " << entryPoint << " benchmark...\n";
+		// Parameterize across workgroup size; all other params stay fixed.
+		std::vector<ordered_json> benchmarkResults;
+		for (const auto &n : workgroupSizes) {
+			// Set up kernel inputs.
+			auto bufSize =  n * numWorkgroups;
+			auto buf = easyvk::Buffer(device, bufSize);
+			auto buf_size = easyvk::Buffer(device, 1);
+			auto num_iters = easyvk::Buffer(device, 1);
+			buf_size.store(0, bufSize);
+			num_iters.store(0, numIters);
+
+			std::vector<easyvk::Buffer> kernelInputs = {buf, buf_size, num_iters};
+
+			// Initialize kernel.
+			auto program = easyvk::Program(device, kernelCode, kernelInputs);
+			program.setWorkgroups(numWorkgroups);
+			program.setWorkgroupSize(n);
+			program.initialize(entryPoint);
+
+			// Run the kernel.
+			std::vector<double> times(numTrials);
+			for (auto i = 0; i < numTrials; i++) {
+				auto kernelTime = program.runWithDispatchTiming();
+				times[i] = kernelTime / (double) 1000.0; // Convert from nanoseconds to microseconds.
+			}
+
+			auto avgTime = calculate_average(times);
+			auto timeStdDev = calculate_std_dev(times);
+
+			// Store resutls back in JSON
+			ordered_json res;
+			res["workgroupSize"] = n;
+			res["avgTime"] = avgTime;
+			res["stdDev"] = timeStdDev;
+			benchmarkResults.emplace_back(res);
+
+			// Cleanup program.
+			program.teardown();
+			buf.teardown();
+			buf_size.teardown();
+			num_iters.teardown();
+
+		}
+		primitiveBarrierBenchmarkResults[entryPoint] = benchmarkResults;
+		std::cout << entryPoint << " benchmark finished!\n";
+    }
+
+	device.teardown();
+
+	return primitiveBarrierBenchmarkResults;
+}
+
+
+
+int main(int argc, char* argv[]) {
+	// Select which device to use.
+	auto deviceIndex = 1; 
+
+	// Query device properties.
+	auto instance = easyvk::Instance(false);
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+    auto deviceName = device.properties.deviceName;
+    device.teardown();
+
+	// Benchmark parameters.
+	auto numTrials = 16;
 	auto numWorkgroups = 64;
-	auto numIters = 512 * 1; // # of iterations to run kernel loop
+	auto numIters = 1024 * 4; // # of iterations to run kernel loop
 	auto _ = no_barrier_benchmark(instance, deviceIndex, 16, numWorkgroups, 512); // warmup GPU
 
-	std::cout << "Starting no_barrier benchmark..." << std::endl;
-	auto noBarrierResults = no_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
-	std::cout << "no_barrier benchmark finished." << std::endl;
+	auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
 
-	std::cout << "Starting local_subgroup_barrier benchmark..." << std::endl;
-	auto localSubgroupResults = local_subgroup_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
-	std::cout << "local_subgroup_barrier benchmark finished." << std::endl;
-
-	std::cout << "Starting global_subgroup_barrier benchmark..." << std::endl;
-	auto globalSubgroupResults = global_subgroup_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
-	std::cout << "global_subgroup_barrier benchmark finished." << std::endl;
-
-	std::cout << "Starting workgroup_barrier_local benchmark..." << std::endl;
-	auto localBarrierResults = workgroup_barrier_local_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
-	std::cout << "workgroup_barrier_local benchmark finished." << std::endl;
-
-	std::cout << "Starting workgroup_barrier_global benchmark..." << std::endl;
-	auto globalBarrierResults = workgroup_barrier_global_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
-	std::cout << "workgroup_barrier_global benchmark finished." << std::endl;
-
-	ordered_json benchmarkResults;
-	benchmarkResults["numWorkgroups"] = numWorkgroups;
-	benchmarkResults["noBarrier"] = noBarrierResults;
-	benchmarkResults["localSubgroupBarrier"] = localSubgroupResults;
-	benchmarkResults["globalSubgroupBarrier"] = globalSubgroupResults;
-	benchmarkResults["localWorkgroupBarrier"] = localBarrierResults;
-	benchmarkResults["globalWorkgroupBarrier"] = globalBarrierResults;
+	primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
+	primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
+	primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
+	primitiveBarrierBenchmarkResult["numIters"] = numIters;
+	primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
 
 	// Write results to file.
 	// Get current time
@@ -471,7 +552,7 @@ int main(int argc, char* argv[]) {
 	std::ofstream outFile(std::string("data/") + std::string(filename));
 	#endif
 	if (outFile.is_open()) {
-		outFile << benchmarkResults.dump(4) << std::endl;
+		outFile << primitiveBarrierBenchmarkResult.dump(4) << std::endl;
 		outFile.close();
 	} else {
 		std::cerr << "Failed to write test results to file!\n";
