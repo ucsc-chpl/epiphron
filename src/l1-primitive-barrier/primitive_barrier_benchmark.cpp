@@ -61,7 +61,7 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 										 size_t numIters) {
 	// Select device to use from the provided device index.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
-	auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+	std::cout << "Running primitive barrier benchmark on " << device.properties.deviceName << "...\n";
 
 	// Load the kernel.
 	std::vector<uint32_t> kernelCode = 
@@ -135,56 +135,58 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
     }
 
 	device.teardown();
+	std::cout << "Primitive barrier benchmark on " << device.properties.deviceName << " finished!\n\n";
 
 	return primitiveBarrierBenchmarkResults;
 }
 
 
 int main(int argc, char* argv[]) {
-	// Select which device to use.
-	auto deviceIndex = 1; 
-
-	// Query device properties.
-	auto instance = easyvk::Instance(false);
-    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
-    auto deviceName = device.properties.deviceName;
-    device.teardown();
-
 	// Benchmark parameters.
-	auto numTrials = 16;
+	auto numTrials = 32;
 	auto numWorkgroups = 64;
 	auto numIters = 1024 * 4; // # of iterations to run kernel loop
 
-	// "warm up" the GPU by giving it some initial work. If this is not done the 
-	// results of the first benchmark that is run will skewed for some reason.	
-	auto _ = primitive_barrier_benchmark(instance, deviceIndex, 1, numWorkgroups, numIters);
+	// Run benchmark on every availible device.
+	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
+	for (size_t deviceIndex = 0; deviceIndex < instance.physicalDevices().size(); deviceIndex++) {
+		// Query device properties.
+		auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
+		auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+		auto deviceName = device.properties.deviceName;
+		device.teardown();
 
-	auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+		// "warm up" the GPU by giving it some initial work. If this is not done the 
+		// results of the first benchmark that is run will skewed for some reason.	
+		auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, numIters);
 
-	primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
-	primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
-	primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
-	primitiveBarrierBenchmarkResult["numIters"] = numIters;
-	primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
+		auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
 
-	// Write results to file.
-	// Get current time
-    std::time_t currentTime = std::time(nullptr);
-    std::tm* currentDateTime = std::localtime(&currentTime);
+		primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
+		primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
+		primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
+		primitiveBarrierBenchmarkResult["numIters"] = numIters;
+		primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
 
-    // Create file name using current time and date
-    char filename[100];
-	std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
-	#ifdef __ANDROID__
-	std::ofstream outFile(filename);
-	#else
-	std::ofstream outFile(std::string("data/") + std::string(filename));
-	#endif
-	if (outFile.is_open()) {
-		outFile << primitiveBarrierBenchmarkResult.dump(4) << std::endl;
-		outFile.close();
-	} else {
-		std::cerr << "Failed to write test results to file!\n";
+		// Write results to file.
+		// Get current time
+		std::time_t currentTime = std::time(nullptr);
+		std::tm* currentDateTime = std::localtime(&currentTime);
+
+		// Create file name using current time and date
+		char filename[100];
+		std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
+		#ifdef __ANDROID__
+		std::ofstream outFile(filename);
+		#else
+		std::ofstream outFile(std::string("data/") + std::string(filename));
+		#endif
+		if (outFile.is_open()) {
+			outFile << primitiveBarrierBenchmarkResult.dump(4) << std::endl;
+			outFile.close();
+		} else {
+			std::cerr << "Failed to write test results to file!\n";
+		}
 	}
 
 	// Cleanup instance
