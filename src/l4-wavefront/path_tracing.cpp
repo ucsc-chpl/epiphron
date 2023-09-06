@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
     auto workgroupSize = 256;
     auto numWorkgroups = std::ceil((double) (width * height) / workgroupSize);
     std::cout << "numWorkgroups: " << numWorkgroups << ", workgroupSize: " << workgroupSize << std::endl;
+    std::cout << "Total work size: " << numWorkgroups * workgroupSize << "\n";
     program.setWorkgroups(numWorkgroups);
     program.setWorkgroupSize(workgroupSize);
     program.initialize(entry_point);
