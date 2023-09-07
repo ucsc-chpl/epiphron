@@ -1,6 +1,17 @@
 #define MIN_T 0.01f
 #define MAX_T 10000.0f
 
+
+typedef struct Sphere {
+    float3 pos;
+    float r;
+} Sphere;
+
+typedef struct Scene {
+    __global Sphere *spheres;
+    uint num_spheres; 
+} Scene;
+
 typedef struct HitInfo {
     float3 normal;
     float t;
@@ -25,11 +36,13 @@ static void write_color(uint index, __global uint *image, float3 col) {
 }
  
 
-static bool intersectSphere(float3 ray_pos, float3 ray_dir, HitInfo *hit, float4 sphere) {
+static bool intersectSphere(float3 ray_pos, 
+                            float3 ray_dir, HitInfo *hit, 
+                            const __global Sphere *sphere) {
     // Get the vector from the center of the sphere to the ray origin.
-    float3 m = ray_pos - sphere.xyz;
+    float3 m = ray_pos - sphere->pos;
     float b = dot(m, ray_dir);
-    float c = dot(m, m) - sphere.w * sphere.w;
+    float c = dot(m, m) - sphere->r * sphere->r;
 
     // No hit if the ray's origin is outside the sphere (c > 0) and 
     // the ray is pointing away from the sphere (b > 0)
@@ -53,41 +66,38 @@ static bool intersectSphere(float3 ray_pos, float3 ray_dir, HitInfo *hit, float4
 
     if (dist > MIN_T && dist < hit->t) {
         hit->t = dist;
-        hit->normal = normalize((ray_pos + ray_dir * dist) - sphere.xyz) * (from_inside ? -1.0f : 1.0f);
+        hit->normal = normalize((ray_pos + ray_dir * dist) - sphere->pos) * (from_inside ? -1.0f : 1.0f);
         return true;
     }
 
     return false;
 }
 
-static float3 trace_ray(float3 ray_pos, float3 ray_dir) {
+
+static float3 trace_ray(float3 ray_pos, float3 ray_dir, Scene *scene) {
     HitInfo closest_hit;
     closest_hit.t = MAX_T;
 
     float3 col = (float3) (0.0f, 0.0f, 0.0f);
 
-    if (intersectSphere(ray_pos, ray_dir, &closest_hit, (float4) (0.0f, 0.0f, 20.0f, 1.0f))) {
-        col = (float3) (0.1f, 1.0f, 0.1f);
+    bool hit = false; 
+    for (uint i = 0; i < scene->num_spheres; i++) {
+        hit |= intersectSphere(ray_pos, ray_dir, &closest_hit, &scene->spheres[i]);
     }
 
-    if (intersectSphere(ray_pos, ray_dir, &closest_hit, (float4) (10.0f, 0.0f, 20.0f, 1.0f))) {
-        col = (float3) (0.1f, 0.1f, 1.0f);
-    }
-
-    if (intersectSphere(ray_pos, ray_dir, &closest_hit, (float4) (-10.0f, 0.0f, 20.0f, 1.0f))) {
-        col = (float3) (1.0f, 0.1f, 0.1f);
+    if (hit) {
+        col = (float3) (1.0f, 0.0f, 0.0f);
     }
     
-
     return col;
 }
 
 
-
-
 __kernel void render(__global uint *image_buffer,
                      __global uint *image_buf_width,
-                     __global uint *image_buf_height) {
+                     __global uint *image_buf_height,
+                     __global Sphere *spheres,
+                     __global uint *num_spheres) {
 
     uint idx = get_global_id(0);
     if (idx >= image_buf_width[0] * image_buf_height[0]) {
@@ -109,6 +119,11 @@ __kernel void render(__global uint *image_buffer,
 
     float3 ray_dir = normalize(ray_target - ray_origin);
 
-    float3 col = trace_ray(ray_origin, ray_dir);
+    // Init scene.
+    Scene scene;
+    scene.spheres = spheres;
+    scene.num_spheres = num_spheres[0];
+
+    float3 col = trace_ray(ray_origin, ray_dir, &scene);
     write_color(idx, image_buffer, col);
 }

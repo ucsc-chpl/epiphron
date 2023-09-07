@@ -18,10 +18,16 @@
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
 
-typedef struct Sphere {
-    float normal[3];
-    float t alignas(16);
-} Sphere;
+
+/**
+ * Struct definition for a sphere. 
+ * Matches the exact memory layout that the GPU expects.
+*/
+typedef struct GPUSphere {
+    float pos[3];
+    float r alignas(16);
+} GPUSphere;
+
 
 int main(int argc, char* argv[]) {
     auto deviceIndex = 0;
@@ -41,22 +47,34 @@ int main(int argc, char* argv[]) {
     // Image dimensions
     int width = 640;
     int height = 480;
-    auto image_buf = easyvk::Buffer(device, width * height);
+    auto image_buf = easyvk::Buffer(device, width * height, sizeof(uint32_t));
     image_buf.clear();
-    auto image_buf_width = easyvk::Buffer(device, 1);
-    image_buf_width.store(0, width);
-    auto image_buf_height = easyvk::Buffer(device, 1);
-    image_buf_height.store(0, height);
+    auto image_buf_width = easyvk::Buffer(device, 1, sizeof(uint32_t));
+    image_buf_width.store<uint32_t>(0, width);
+    auto image_buf_height = easyvk::Buffer(device, 1, sizeof(uint32_t));
+    image_buf_height.store<uint32_t>(0, height);
 
     // Define scene objects.
-    aut
+    std::vector<GPUSphere> spheres = {
+        {{-10.0f, 0.0f, 20.0f}, 1.0f},
+        {{0.0f, 0.0f, 20.0f}, 1.0f},
+        {{10.0f, 0.0f, 20.0f}, 1.0f}
+    };
 
-
+    auto sphere_buf = easyvk::Buffer(device, spheres.size(), sizeof(GPUSphere));
+    for (size_t i = 0; i < spheres.size(); i++) {
+        sphere_buf.store<GPUSphere>(i, spheres[i]);
+    }
+    auto num_spheres_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+    num_spheres_buf.store<uint32_t>(0, spheres.size());
 
     // Init shader program.
     std::vector<easyvk::Buffer> kernelInputs = {image_buf,
                                                 image_buf_width,
-                                                image_buf_height};
+                                                image_buf_height,
+                                                sphere_buf,
+                                                num_spheres_buf
+                                                };
     auto program = easyvk::Program(device, spvCode, kernelInputs);
     // Divide work so that we launch one thread per pixel.
     auto workgroupSize = 256;
@@ -76,7 +94,7 @@ int main(int argc, char* argv[]) {
     std::vector<uint32_t> imageBuffer(width * height);
     // Loop through the imageBuffer and set the alpha component to 255 (fully opaque)
     for (size_t i = 0; i < imageBuffer.size(); ++i) {
-        imageBuffer[i] = image_buf.load(i);
+        imageBuffer[i] = image_buf.load<uint32_t>(i);
     }
 
     // Save the image buffer as a PNG file.
