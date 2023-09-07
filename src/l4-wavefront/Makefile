@@ -1,5 +1,5 @@
 CXXFLAGS = -std=c++17
-CLSPVFLAGS = --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points -O0
+CLSPVFLAGS = --cl-std=CL2.0 --spv-version=1.3 --inline-entry-points -O3
 SHADERS = $(wildcard *.cl)
 SPVS = $(patsubst %.cl,build/%.spv,$(SHADERS))
 CINITS = $(patsubst %.cl,build/%.cinit,$(SHADERS))
@@ -12,7 +12,7 @@ all: build easyvk build/$(BENCHMARK).run
 easyvk: 
 	make -C ../../easyvk
 
-build/$(BENCHMARK).run: $(BENCHMARK).cpp $(SPVS) $(CINITS)
+build/$(BENCHMARK).run: path_tracing.cpp $(SPVS) $(CINITS)
 	mkdir -p data
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o $< -lvulkan -o $@
 
