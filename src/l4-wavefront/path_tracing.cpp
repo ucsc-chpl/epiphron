@@ -18,6 +18,11 @@
 using ordered_json = nlohmann::ordered_json;
 using namespace std::chrono;
 
+typedef struct Sphere {
+    float normal[3];
+    float t alignas(16);
+} Sphere;
+
 int main(int argc, char* argv[]) {
     auto deviceIndex = 0;
 
@@ -42,6 +47,11 @@ int main(int argc, char* argv[]) {
     image_buf_width.store(0, width);
     auto image_buf_height = easyvk::Buffer(device, 1);
     image_buf_height.store(0, height);
+
+    // Define scene objects.
+    aut
+
+
 
     // Init shader program.
     std::vector<easyvk::Buffer> kernelInputs = {image_buf,
