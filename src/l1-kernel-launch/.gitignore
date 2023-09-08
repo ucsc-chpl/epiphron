@@ -2,3 +2,5 @@
 *.spv
 vk-output.txt
 *.run
+data/
+vk-output.txt
