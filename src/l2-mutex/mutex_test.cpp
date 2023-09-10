@@ -94,7 +94,6 @@ extern "C" float mutex_benchmark(easyvk::Device device, uint32_t workgroups, uin
     mutexProgram.setWorkgroups(workgroups);
     mutexProgram.setWorkgroupSize(workgroup_size);
     mutexProgram.initialize("mutex_test");
-  
     float rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
         auto start = high_resolution_clock::now();
@@ -112,97 +111,77 @@ extern "C" float mutex_benchmark(easyvk::Device device, uint32_t workgroups, uin
 
 
 
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist) {
+extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, vector<uint32_t> spv_code, string test_name) {
 
-    string folder;
-    if (thread_dist) folder = "chunking";
-    else folder = "striding";
-    vector<uint32_t> spv_code;
-    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
-    char currentTest[100];
-    sprintf(currentTest, ", %s: CAS_lock\n", folder.c_str());
-    spv_code = getSPVCode(folder + "/cas_lock.cinit");
-    benchmarkData << currentTest;
+    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName + ", " + test_name + "\n";
 
-    // Contention/Padding Values
     list<uint32_t> test_values;
 
-
-    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
+    for (uint32_t i = 1; i <= workgroups; i *= 2) {
         test_values.push_back(i);  
-    } 
+    }
 
     int errors = 0;
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
-        for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
-            uint32_t contention = *it1;
-            uint32_t padding = *it2;
-            float observed_rate = 0.0;
-            benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
-            const int size = ((workgroup_size * workgroups) * padding) / contention;
-            uint32_t mutex_iters = 16;
-            Buffer lockBuf = Buffer(device, size);
-            Buffer resultBuf = Buffer(device, size);
-            Buffer sizeBuf = Buffer(device, 1);
-            Buffer paddingBuf = Buffer(device, 1);
-            Buffer mutexItersBuf = Buffer(device, 1);
-            Buffer contentionBuf = Buffer(device, 1);
-            sizeBuf.store(0, size);
-            paddingBuf.store(0, padding);
-            contentionBuf.store(0, contention);
-            while(true) {
-                mutexItersBuf.store(0, mutex_iters);
-                lockBuf.clear();
-                resultBuf.clear();
-                vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, paddingBuf};
-                if (thread_dist) { // Chunking
-                    buffers.emplace_back(contentionBuf);
-                    observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
-                } else { // Striding
-                    buffers.emplace_back(sizeBuf);
-                    observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
-                }
-                if (isinf(observed_rate)) mutex_iters *= 2;
-                else break;
+        uint32_t contention = *it1;
+        float observed_rate = 0.0;
+        benchmarkData << "(" + to_string(contention) + ", ";
+        const int size = workgroups / contention;
+        uint32_t mutex_iters = 16;
+        Buffer lockBuf = Buffer(device, size);
+        Buffer resultBuf = Buffer(device, size);
+        Buffer ticketBuf = Buffer(device, size);
+        Buffer mutexItersBuf = Buffer(device, 1);
+        Buffer contentionBuf = Buffer(device, 1);
+        contentionBuf.store(0, contention);
+        while(true) {
+            mutexItersBuf.store(0, mutex_iters);
+            lockBuf.clear();
+            resultBuf.clear();
+            vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, contentionBuf};
+            if (test_name == "ticket_lock") {
+                buffers.emplace_back(ticketBuf); 
+                observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
+            } else {
+                observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
             }
-            // Buffer Validation
-            for (int access = 0; access < size; access += padding) {
-                if (resultBuf.load(access) != mutex_iters * test_iters * contention) errors += 1;
-            }
-            lockBuf.teardown();
-            resultBuf.teardown();
-            sizeBuf.teardown();
-            paddingBuf.teardown();
-            mutexItersBuf.teardown();
-            contentionBuf.teardown();
-            benchmarkData << to_string(observed_rate) + ")" << endl;
+            if (isinf(observed_rate)) mutex_iters *= 2;
+            else break;
         }
+        // Buffer Validation
+        for (int access = 0; access < size; access += 1) {
+            if (resultBuf.load(access) != mutex_iters * test_iters * contention) errors += 1;
+        }
+        lockBuf.teardown();
+        resultBuf.teardown();
+        ticketBuf.teardown();
+        mutexItersBuf.teardown();
+        contentionBuf.teardown();
+        benchmarkData << to_string(observed_rate) + ")" << endl;
     }
     log("Error count: %d\n", errors);
     return;
 }
-/*
-Implement: CAS, Ticket, CAS /w relaxed peeking
-*/
 
 extern "C" void run_mutex_tests(easyvk::Device device) {
     uint32_t test_iters = 64;
 
     uint32_t maxComputeWorkGroupCount = device.properties.limits.maxComputeWorkGroupCount[0];
-    if (maxComputeWorkGroupCount > 65536) maxComputeWorkGroupCount = 65536;
+    if (maxComputeWorkGroupCount > 1024) maxComputeWorkGroupCount = 1024;
 
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    if (workgroup_size > 1024) workgroup_size = 1024;
+    if (workgroup_size > 1) workgroup_size = 1;
 
     double quotient = static_cast<double>(maxComputeWorkGroupCount) / workgroup_size;
 
     uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
 
-    // Striding
-    run(device, workgroups, workgroup_size, test_iters, 0);
+    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_peeking.cinit"), "cas_lock_relaxed_peeking");
 
-    // Chunking
-    run(device, workgroups, workgroup_size, test_iters, 1);
+    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock.cinit"), "cas_lock");
+
+    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock.cinit"), "ticket_lock");
+
     return;
 }
 
@@ -219,17 +198,20 @@ int main() {
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
 
-        if (i != 1) continue;
+        if (i != 1 && i != 3) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_mutex_tests(device);
         device.teardown();
+        system("python3 graph.py");
+        benchmarkData.close();
+        benchmarkData.open("result.txt", out | trunc);
+
 
     }
     
     benchmarkData.close();
 
     instance.teardown();
-    //system("python3 heatmap.py");
     return 0;
 }

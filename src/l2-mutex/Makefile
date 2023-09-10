@@ -1,5 +1,5 @@
-CXXFLAGS = -g -std=c++17
-CINITS = $(patsubst %.cl,%.cinit,$(wildcard chunking/*.cl striding/*.cl))
+CXXFLAGS = -std=c++17
+CINITS = $(patsubst %.cl,%.cinit,$(wildcard *.cl))
 all: easyvk atomic_rmw_test
 
 easyvk:
@@ -15,8 +15,6 @@ atomic_rmw_test: mutex_test.cpp $(CINITS)
 	clspv -cl-std=CL2.0 -inline-entry-points -output-format=c $< -o $@
 
 clean:
-	rm -rf chunking/*.cinit
-	rm -rf chunking/*.spv
-	rm -rf striding/*.cinit
-	rm -rf striding/*.spv
+	rm -rf *.cinit
+	rm -rf *.spv
 	rm *.run
