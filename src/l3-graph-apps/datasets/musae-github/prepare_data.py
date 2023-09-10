@@ -19,6 +19,10 @@ with open(csv_file_path, 'r') as csv_file:
         vertex1, vertex2 = row  # Assuming the two columns in each row represent vertices connected by an edge
         text_file_content += f"{vertex1} {vertex2}\n"
 
+# Save text file also.
+with open('musae_git_edges.txt', 'wt', encoding='utf-8') as text_file:
+    text_file.write(text_file_content)
+
 # Save the converted content into a text file and compress it using gzip
 compressed_file_path = 'musae_git_edges.gz'  # Replace with your desired output compressed file path
 with gzip.open(compressed_file_path, 'wt', encoding='utf-8') as compressed_file:
