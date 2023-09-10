@@ -1,10 +1,10 @@
 
-__kernel void baseline_bfs(__global uint *num_vertices,
-                           __global uint *curr,
-                           __global uint *costs,
-                           __global uint *vertices,
-                           __global uint *edges,
-                           __global bool *finished) {
+__kernel void baselineBfs(__global uint *num_vertices,
+                          __global uint *curr,
+                          __global uint *costs,
+                          __global uint *vertices,
+                          __global uint *edges,
+                          __global bool *finished) {
     uint v = get_global_id(0);
 
     if (v < *num_vertices && costs[v] == *curr) {
