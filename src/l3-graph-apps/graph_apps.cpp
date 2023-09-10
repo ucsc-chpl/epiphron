@@ -7,6 +7,15 @@
 #include <set>
 #include <queue>
 #include <cassert>
+#include <cmath>
+
+#include <easyvk.h>
+
+#ifdef __ANDROID__
+#define USE_VALIDATION_LAYERS false
+#else
+#define USE_VALIDATION_LAYERS true
+#endif
 
 
 typedef struct Graph {
@@ -112,7 +121,7 @@ void generateDOTFile(const Graph &g, const std::string& filename) {
 // Performs DFS on the given graph from a source vertex.
 // A cost array is returned which cost[i] represents the cost of the shortest path
 // from the source vertex to vertex i.
-std::vector<uint32_t> bfs(const Graph &g, uint32_t source) {
+std::vector<uint32_t> cpuBfs(const Graph &g, uint32_t source) {
     assert(source < g.num_vertices);
 
     std::vector<uint32_t> costs(g.num_vertices, UINT32_MAX);
@@ -149,29 +158,107 @@ std::vector<uint32_t> bfs(const Graph &g, uint32_t source) {
     return costs;
 }
 
+// Performs BFS on the given graph using the algorithm described in:
+// Pawan Harish and P. J. Narayanan. Accelerating large graph algorithms on the GPU using CUDA.
+std::vector<uint32_t> baselineBfs(const Graph &g, uint32_t source) {
+    auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
+    auto deviceIndex = 0;
+    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+    auto deviceName = device.properties.deviceName;
+    std::cout << "Using device: " << deviceName << "\n";
+
+    // Load shader code.
+    std::vector<uint32_t> spvCode = 
+    #include "build/baseline.cinit"
+    ;
+    auto entry_point = "baseline_bfs";
+
+    // Set up kernel buffers.
+    auto num_vertices_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+    num_vertices_buf.store<uint32_t>(0, g.num_vertices);
+    auto curr_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+    curr_buf.store<uint32_t>(0, 0);
+    auto costs_buf = easyvk::Buffer(device, g.num_vertices, sizeof(uint32_t));
+    for (int i = 0; i < g.num_vertices; i++) {
+        if (i == source) {
+            costs_buf.store<uint32_t>(i, 0);
+            continue;
+        } 
+
+        costs_buf.store<uint32_t>(i, UINT32_MAX);
+    }
+    auto vertices_buf = easyvk::Buffer(device, g.num_vertices+1, sizeof(uint32_t));
+    for (int i = 0; i < g.num_vertices+1; i++) {
+        vertices_buf.store<uint32_t>(i, g.vertices.at(i));
+    }
+    auto edges_buf = easyvk::Buffer(device, g.num_edges, sizeof(uint32_t));
+    for (int i = 0; i < g.num_edges; i++) {
+        edges_buf.store<uint32_t>(i, g.edges.at(i));
+    }
+    auto finished_buf = easyvk::Buffer(device, 1, sizeof(bool));
+    finished_buf.store<bool>(0, false);
+
+    std::vector<easyvk::Buffer> kernelInputs = {num_vertices_buf,
+                                                curr_buf, 
+                                                costs_buf,
+                                                vertices_buf,
+                                                edges_buf,
+                                                finished_buf};
+    
+    auto program = easyvk::Program(device, spvCode, kernelInputs);
+    // Launch a thread per vertex.
+    auto workgroupSize = 256;
+    auto numWorkgroups = std::ceil((double) (g.num_vertices) / workgroupSize);
+    std::cout << "numWorkgroups: " << numWorkgroups << ", workgroupSize: " << workgroupSize << std::endl;
+    std::cout << "Total work size: " << numWorkgroups * workgroupSize << "\n";
+    program.setWorkgroups(numWorkgroups);
+    program.setWorkgroupSize(workgroupSize);
+    program.initialize(entry_point); // TODO: Make a change to easvk which ensures you do this.
+
+    do {
+        finished_buf.store<bool>(0, true);
+        program.run();
+        curr_buf.store<uint32_t>(0, curr_buf.load<uint32_t>(0) + 1);
+    } while (!finished_buf.load<bool>(0));
+
+    // Copy costs array.
+    std::vector<uint32_t> costs;
+    for (int i = 0; i < g.num_vertices; i++) {
+        costs.emplace_back(costs_buf.load<uint32_t>(i));
+    }
+
+    finished_buf.teardown();
+    num_vertices_buf.teardown();
+    curr_buf.teardown();
+    vertices_buf.teardown();
+    edges_buf.teardown();
+    costs_buf.teardown();
+    program.teardown();
+    device.teardown();
+    instance.teardown();
+
+    return costs;
+}
+
 
 int main() {
     // uint32_t seed = std::time(0);
     uint32_t seed = 0xcafebabe;
-    Graph g = generateRandomGraph(32, 3, seed);
-    std::cout << "Vertices array (V_A): ";
-    for (int vertex : g.vertices) {
-        std::cout << vertex << ' ';
-    }
-    std::cout << '\n';
-
-    std::cout << "Edges array (E_A): ";
-    for (int edge : g.edges) {
-        std::cout << edge << ' ';
-    }
-    std::cout << "\n\n";
-
-    auto costs = bfs(g, 1);
-    for (int i = 0; i < g.num_vertices; i++) {
-        std::cout << i << ": " << costs[i] << "\n";
-    }
-
-
-    // RUn dot -Tpng graph.dot -o graph.png to visualize.
+    Graph g = generateRandomGraph(512, 64, seed);
+    // Run dot -Tpng graph.dot -o graph.png to visualize.
     generateDOTFile(g, "graph.dot");
+
+    auto sourceVertex = 0;
+    auto cpuCosts = cpuBfs(g, sourceVertex);
+    auto baselineCosts = baselineBfs(g, sourceVertex);
+
+    // Check that the results match the cpu results.
+    for (int i = 0; i < g.num_vertices; i++) {
+        assert(cpuCosts[i] == baselineCosts[i]);
+    }
+
+    // for (int i = 0; i < g.num_vertices; i++) {
+    //     std::cout << i << ": " << costs[i] << "\n";
+    // }
+
 }
