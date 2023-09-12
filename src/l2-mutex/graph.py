@@ -50,6 +50,10 @@ for i, title in enumerate(sorted(titles)):
     graph_coordinates = [c for c in coordinates if c[2] == title]
     generate_graph(graph_coordinates, title, colors[i % len(colors)])
 
+x_ticks = [2 ** i for i in range(1, 11)]  # Powers of 2 from 1 to 1024
+x_labels = [str(2 ** i) for i in range(1, 11)]
+plt.xscale('log')
+plt.xticks(x_ticks, x_labels)
 plt.yscale('log')
 
 plt.legend(title='Legend', loc='upper right')

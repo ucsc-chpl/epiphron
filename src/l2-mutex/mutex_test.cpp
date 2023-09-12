@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
+#include <unistd.h>
 
 #include "easyvk.h"
 #include "../_example/json.h"
@@ -57,7 +58,7 @@ const char* os_name() {
     #endif
 }
 
-ofstream benchmarkData; 
+ofstream benchmarkData;
 
 void log(const char* fmt, ...) {
     va_list args;
@@ -117,7 +118,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
 
     list<uint32_t> test_values;
 
-    for (uint32_t i = 1; i <= workgroups; i *= 2) {
+    for (uint32_t i = 2; i <= workgroups; i *= 2) {
         test_values.push_back(i);  
     }
 
@@ -128,11 +129,12 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
         benchmarkData << "(" + to_string(contention) + ", ";
         const int size = workgroups / contention;
         uint32_t mutex_iters = 16;
-        Buffer lockBuf = Buffer(device, size);
-        Buffer resultBuf = Buffer(device, size);
-        Buffer ticketBuf = Buffer(device, size);
-        Buffer mutexItersBuf = Buffer(device, 1);
-        Buffer contentionBuf = Buffer(device, 1);
+        Buffer lockBuf = Buffer(device, size, sizeof(uint32_t));
+        Buffer resultBuf = Buffer(device, size, sizeof(uint32_t));
+        Buffer ticketBuf = Buffer(device, size, sizeof(uint32_t));
+        Buffer backoffBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t));
+        Buffer mutexItersBuf = Buffer(device, 1, sizeof(uint32_t));
+        Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
         contentionBuf.store(0, contention);
         while(true) {
             mutexItersBuf.store(0, mutex_iters);
@@ -140,21 +142,29 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             resultBuf.clear();
             vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, contentionBuf};
             if (test_name == "ticket_lock") {
+                ticketBuf.clear();
                 buffers.emplace_back(ticketBuf); 
-                observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
-            } else {
-                observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
+            } else if (test_name == "cas_lock_backoff") {
+                backoffBuf.clear();
+                buffers.emplace_back(backoffBuf); 
+            } else if (test_name == "ticket_lock_backoff") {
+                ticketBuf.clear();
+                backoffBuf.clear();
+                buffers.emplace_back(ticketBuf);
+                buffers.emplace_back(backoffBuf); 
             }
+            observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
             if (isinf(observed_rate)) mutex_iters *= 2;
             else break;
         }
         // Buffer Validation
         for (int access = 0; access < size; access += 1) {
-            if (resultBuf.load(access) != mutex_iters * test_iters * contention) errors += 1;
+            if (resultBuf.load<uint32_t>(access) != mutex_iters * test_iters * contention) errors += 1;
         }
         lockBuf.teardown();
         resultBuf.teardown();
         ticketBuf.teardown();
+        backoffBuf.teardown();
         mutexItersBuf.teardown();
         contentionBuf.teardown();
         benchmarkData << to_string(observed_rate) + ")" << endl;
@@ -180,7 +190,11 @@ extern "C" void run_mutex_tests(easyvk::Device device) {
 
     run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock.cinit"), "cas_lock");
 
-    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock.cinit"), "ticket_lock");
+    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_backoff.cinit"), "cas_lock_backoff");
+
+    run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock.cinit"), "ticket_lock");
+
+    run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock_backoff.cinit"), "ticket_lock_backoff");
 
     return;
 }
@@ -198,14 +212,14 @@ int main() {
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
 
-        if (i != 1 && i != 3) continue;
+        if (i != 1) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_mutex_tests(device);
         device.teardown();
-        system("python3 graph.py");
-        benchmarkData.close();
-        benchmarkData.open("result.txt", out | trunc);
+        //benchmarkData.close();
+        //sleep(5);
+        //if (i == 1) benchmarkData.open("result.txt", fstream::out | fstream::trunc);
 
 
     }
@@ -213,5 +227,7 @@ int main() {
     benchmarkData.close();
 
     instance.teardown();
+
+    system("python3 graph.py");
     return 0;
 }
