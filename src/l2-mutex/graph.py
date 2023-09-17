@@ -18,8 +18,8 @@ def generate_graph(coordinates, title, color):
     description = title_information[1].split(", ")
     plt.plot(contention_values, throughput_values, marker='o', linestyle='-', label=description[1], color=color, markersize=6)
     plt.text(-0.15, 1.12, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
-    plt.text(0.94, 1.12, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
-    plt.text(0.94, 1.07, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
+    #plt.text(0.94, 1.12, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
+    #plt.text(0.94, 1.07, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
 
 
 def extract_coordinates_from_file(filename):
@@ -50,15 +50,16 @@ for i, title in enumerate(sorted(titles)):
     graph_coordinates = [c for c in coordinates if c[2] == title]
     generate_graph(graph_coordinates, title, colors[i % len(colors)])
 
-x_ticks = [2 ** i for i in range(1, 11)]  # Powers of 2 from 1 to 1024
-x_labels = [str(2 ** i) for i in range(1, 11)]
+x_ticks = [2 ** i for i in range(0, 11)]  # Powers of 2 from 1 to 1024
+x_labels = [str(2 ** i) for i in range(0, 11)]
 plt.xscale('log')
 plt.xticks(x_ticks, x_labels)
 plt.yscale('log')
 
 plt.legend(title='Legend', loc='upper right')
 plt.title('Lock Tests')
-plt.xlabel('Contention')
+#plt.xlabel('Contention')
+plt.xlabel('Thread Count')
 plt.ylabel('Throughput')
 plt.grid(True)
 plt.legend()

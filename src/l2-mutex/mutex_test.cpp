@@ -118,7 +118,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
 
     list<uint32_t> test_values;
 
-    for (uint32_t i = 2; i <= workgroups; i *= 2) {
+    for (uint32_t i = 1; i <= workgroups; i *= 2) {
         test_values.push_back(i);  
     }
 
@@ -127,12 +127,13 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
         uint32_t contention = *it1;
         float observed_rate = 0.0;
         benchmarkData << "(" + to_string(contention) + ", ";
-        const int size = workgroups / contention;
+        //const int size = workgroups / contention;
         uint32_t mutex_iters = 16;
-        Buffer lockBuf = Buffer(device, size, sizeof(uint32_t));
-        Buffer resultBuf = Buffer(device, size, sizeof(uint32_t));
-        Buffer ticketBuf = Buffer(device, size, sizeof(uint32_t));
+        Buffer lockBuf = Buffer(device, 1, sizeof(uint32_t)); //
+        Buffer resultBuf = Buffer(device, 1, sizeof(uint32_t)); //
+        Buffer ticketBuf = Buffer(device, 1, sizeof(uint32_t)); //
         Buffer backoffBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t));
+        //Buffer waitingBuf = Buffer(device, 1, sizeof(uint32_t));
         Buffer mutexItersBuf = Buffer(device, 1, sizeof(uint32_t));
         Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
         contentionBuf.store(0, contention);
@@ -140,31 +141,34 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             mutexItersBuf.store(0, mutex_iters);
             lockBuf.clear();
             resultBuf.clear();
-            vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, contentionBuf};
+            vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf};
             if (test_name == "ticket_lock") {
                 ticketBuf.clear();
                 buffers.emplace_back(ticketBuf); 
             } else if (test_name == "cas_lock_backoff") {
                 backoffBuf.clear();
                 buffers.emplace_back(backoffBuf); 
+                //buffers.emplace_back(waitingBuf);
             } else if (test_name == "ticket_lock_backoff") {
                 ticketBuf.clear();
                 backoffBuf.clear();
                 buffers.emplace_back(ticketBuf);
                 buffers.emplace_back(backoffBuf); 
             }
-            observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
+            observed_rate = mutex_benchmark(device, contention, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
             if (isinf(observed_rate)) mutex_iters *= 2;
             else break;
         }
         // Buffer Validation
-        for (int access = 0; access < size; access += 1) {
-            if (resultBuf.load<uint32_t>(access) != mutex_iters * test_iters * contention) errors += 1;
-        }
+        if (resultBuf.load<uint32_t>(0) != mutex_iters * test_iters * contention) errors += 1;
+        // for (int access = 0; access < size; access += 1) {
+        //     if (resultBuf.load<uint32_t>(access) != mutex_iters * test_iters * contention) errors += 1;
+        // }
         lockBuf.teardown();
         resultBuf.teardown();
         ticketBuf.teardown();
         backoffBuf.teardown();
+        //waitingBuf.teardown();
         mutexItersBuf.teardown();
         contentionBuf.teardown();
         benchmarkData << to_string(observed_rate) + ")" << endl;
