@@ -92,11 +92,11 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 		for (const auto &n : workgroupSizes) {
 			// Set up kernel inputs.
 			auto bufSize =  n * numWorkgroups;
-			auto buf = easyvk::Buffer(device, bufSize);
-			auto buf_size = easyvk::Buffer(device, 1);
-			auto num_iters = easyvk::Buffer(device, 1);
-			buf_size.store(0, bufSize);
-			num_iters.store(0, numIters);
+			auto buf = easyvk::Buffer(device, bufSize, sizeof(uint32_t));
+			auto buf_size = easyvk::Buffer(device, 1, sizeof(uint32_t));
+			auto num_iters = easyvk::Buffer(device, 1, sizeof(uint32_t));
+			buf_size.store<uint32_t>(0, bufSize);
+			num_iters.store<uint32_t>(0, numIters);
 
 			std::vector<easyvk::Buffer> kernelInputs = {buf, buf_size, num_iters};
 
@@ -142,7 +142,7 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 
 
 int main(int argc, char* argv[]) {
-	// Benchmark parameters.
+	// BENCHMARK PARAMETERS
 	auto numTrials = 32;
 	auto numWorkgroups = 64;
 	auto numIters = 256 * 1; // # of iterations to run kernel loop
