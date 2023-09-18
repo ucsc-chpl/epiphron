@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <chrono>
 #include <iostream>
+#include <thread>
 #include <easyvk.h>
 
 #include "json.h"
@@ -108,14 +109,14 @@ double calculate_coeff_variation(const std::vector<double>& values) {
  * The protocol is parameterized by the number of workgroups to be launched, the 
  * workgroup size, and the amount of local memory for the kernel to use, which all 
  * effect occupancy.
- * @param deviceIndex   The physical device index to use.
- * @param numTrials     How many times the protocol will be repeated.
+ * @param device        Device to use.
+ * @param numTrials     How many times the test will be repeated.
  * @param numWorkgroups Number of workgroups which are dispatched.
  * @param workgroupSize Size of workgroups to be dispatched.
  * @param localMemSize  Amount of local memory the kernel will use.
  * @return JSON object containing results of the test.
 */
-ordered_json occupancy_discovery_test(size_t deviceIndex, 
+ordered_json occupancy_discovery_test(easyvk::Device device, 
                                       size_t numTrials,
                                       size_t numWorkgroups, 
                                       size_t workgroupSize, 
@@ -124,14 +125,11 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     if (workgroupSize == 0) {
         workgroupSize = 1;
     }
+    if (localMemSize == 0) {
+        localMemSize = 1; 
+    }
     // Save test results to JSON.
     ordered_json testResults;
-
-	// Set up instance.
-	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
-
-    // Select device.
-    auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 
     // Load kernel.
     std::vector<uint32_t> spvCode = 
@@ -185,8 +183,6 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
         next_ticket_buf.teardown();
         now_serving_buf.teardown();
     }
-    device.teardown();
-    instance.teardown();
 
     auto avgOccupancyBound = calculate_average(trials);
     auto stdDev = calculate_std_dev(trials);
@@ -203,19 +199,19 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
 int main(int argc, char* argv[]) {
      // BENCHMARK PARAMETERS
     auto deviceIndex = 0;
-    auto numTrials = 2;
+    auto numTrials = 4;
     // The maximum workgroup size to test. Set to -1 to go up to the max allowed
     // workgroup size supported by the device.
-    auto maxWorkgroupSize = 1024;
+    auto maxWorkgroupSize = -1;
     // The maximum size of local memory to test. Set to -1 to go up to the max
     // allowed by the device.
-    auto maxLocalMemSize = 1024 * 8;
-    auto numWorkgroups = 1024 * 4;
+    auto maxLocalMemSize = -1;
+    auto numWorkgroups = 1024 * 3;
     // The test will be parameterized from 1 to {maxWorkgroupSize,
     // maxLocalMemSize}, the below param will determine w/ what granularity to
     // sample (e.g higher stepDivisor will increase number of samples and significantly 
     // increase benchmark time.
-    auto stepDivisor = 8;
+    auto stepDivisor = 16;
 
     // Query device properties.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
@@ -229,8 +225,6 @@ int main(int argc, char* argv[]) {
         // Divide by four because we are using buffers of uint32_t
         maxLocalMemSize = device.properties.limits.maxComputeSharedMemorySize / 4;
     }
-    device.teardown();
-    instance.teardown();
 
     // Save all results to JSON.
     ordered_json testResults;
@@ -248,7 +242,7 @@ int main(int argc, char* argv[]) {
             workgroupSize <= maxWorkgroupSize; 
             workgroupSize += workgroupStepSize) {
 
-            auto occupancy_res = occupancy_discovery_test(deviceIndex, 
+            auto occupancy_res = occupancy_discovery_test(device, 
                                                           numTrials, 
                                                           numWorkgroups, 
                                                           workgroupSize,
@@ -261,6 +255,8 @@ int main(int argc, char* argv[]) {
             occupancy_res["localMemSize"] = localMemSize;
             res.emplace_back(occupancy_res);
         }
+
+        // std::this_thread::sleep_for(milliseconds(500));
     }
     std::cout << "Occupancy discovery test finished!\n";
 
@@ -285,6 +281,9 @@ int main(int argc, char* argv[]) {
 	} else {
 		std::cerr << "Failed to write test results to file!\n";
 	}
+
+    device.teardown();
+    instance.teardown();
 
 	return 0;
 }
