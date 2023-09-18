@@ -20,8 +20,8 @@ const uint32_t SPIRV_MAGIC = 0x07230203;
 // NOTE: This function modifies the first OpConstant instruction it finds with a
 // value of LOCAL_MEM_SIZE (defined below). It does no semantic check of type or 
 // variable name, so ensure the constant you want to modify doens't conflict with
-// any previously defined constant (i.e ensure that the first #define constant w/ value
-// 1024 is at the top of the OpenCL file).
+// any previously defined constant (i.e ensure that the #define constant you wish to 
+// re-define is at the top of the OpenCL file has the value as defined).
 const uint32_t LOCAL_MEM_SIZE = 1024; 
 void modifyLocalMemSize(std::vector<uint32_t>& spirv, uint32_t newValue) {
     if(spirv.size() < 5) {
@@ -124,6 +124,9 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     if (workgroupSize == 0) {
         workgroupSize = 1;
     }
+    if (localMemSize == 0) {
+        localMemSize = 1;
+    }
     // Save test results to JSON.
     ordered_json testResults;
 
@@ -170,7 +173,7 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
         program.initialize(entry_point);
 
         // Launch kernel.
-        program.run();
+        program.runWithDispatchTiming();
 
         trials[i] = (double) count_buf.load<uint32_t>(0);
         if (count_buf.load<uint32_t>(0) > maxOccupancyBound) {
@@ -208,8 +211,10 @@ int main(int argc, char* argv[]) {
     auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
     auto deviceName = device.properties.deviceName;
     // Divide by four because we are using buffers of uint32_t
-    auto maxLocalMemSize = device.properties.limits.maxComputeSharedMemorySize / 4;
-    auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+    // auto maxLocalMemSize = device.properties.limits.maxComputeSharedMemorySize / 4;
+    auto maxLocalMemSize = 256;
+    // auto maxWorkgroupSize = device.properties.limits.maxComputeWorkGroupSize[0];
+    auto maxWorkgroupSize = 256;
     // std::cout << "maxLocalMemSize: " << maxLocalMemSize << "\n";
     // std::cout << "maxWorkgroupSize: " << maxWorkgroupSize << "\n";
     device.teardown();
@@ -219,12 +224,13 @@ int main(int argc, char* argv[]) {
     ordered_json testResults;
     testResults["testName"] = "Occupancy Discovery";
     testResults["deviceName"] = deviceName;
+    std::cout << "Using device: " << deviceName << "\n";
 
     auto numTrials = 8;
     auto numWorkgroups = 1024;
     testResults["numWorkgroups"] = numWorkgroups;
-    auto workgroupStepSize = maxWorkgroupSize / 4;
-    auto localMemStepSize = maxLocalMemSize / 4;
+    auto workgroupStepSize = maxWorkgroupSize / 8;
+    auto localMemStepSize = maxLocalMemSize / 8;
 
     std::vector<ordered_json> res;
     for (int localMemSize = 0; 
@@ -234,7 +240,6 @@ int main(int argc, char* argv[]) {
         for (int workgroupSize = 0;
             workgroupSize <= maxWorkgroupSize; 
             workgroupSize += workgroupStepSize) {
-
             auto occupancy_res = occupancy_discovery_test(deviceIndex, 
                                                         numTrials, 
                                                         numWorkgroups, 
