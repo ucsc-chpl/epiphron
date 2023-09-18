@@ -66,7 +66,7 @@ print(f"Plot saved as {plot_filename_occupancy_bound}")
 
 # Create the heatmap for CV
 fig, ax = plt.subplots()
-cax = ax.matshow(matrix_cv, cmap='viridis')
+cax = ax.matshow(matrix_cv, cmap='viridis', vmin=0.0, vmax=1.0)
 
 # Add colorbar
 cbar = fig.colorbar(cax)
