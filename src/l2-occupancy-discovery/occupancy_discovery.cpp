@@ -143,17 +143,17 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
     std::vector<double> trials(numTrials);
     for (int i = 0; i < numTrials; i++) {
         // Set up buffers.
-        auto count_buf = easyvk::Buffer(device, 1);
-        auto poll_open_buf = easyvk::Buffer(device, 1);
-        auto M_buf = easyvk::Buffer(device, numWorkgroups);
-        auto now_serving_buf = easyvk::Buffer(device, 1);
-        auto next_ticket_buf = easyvk::Buffer(device, 1);
-        auto local_mem_size_buf = easyvk::Buffer(device, 1);
-        count_buf.store(0, 0);
-        poll_open_buf.store(0, 1); // Poll is initially open.
-        next_ticket_buf.store(0, 0);
-        now_serving_buf.store(0, 0);
-        local_mem_size_buf.store(0, localMemSize);
+        auto count_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+        auto poll_open_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+        auto M_buf = easyvk::Buffer(device, numWorkgroups, sizeof(uint32_t));
+        auto now_serving_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+        auto next_ticket_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+        auto local_mem_size_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+        count_buf.store<uint32_t>(0, 0);
+        poll_open_buf.store<uint32_t>(0, 1); // Poll is initially open.
+        next_ticket_buf.store<uint32_t>(0, 0);
+        now_serving_buf.store<uint32_t>(0, 0);
+        local_mem_size_buf.store<uint32_t>(0, localMemSize);
 
         std::vector<easyvk::Buffer> kernelInputs = {count_buf, 
                                                     poll_open_buf,
@@ -171,9 +171,9 @@ ordered_json occupancy_discovery_test(size_t deviceIndex,
         // Launch kernel.
         program.run();
 
-        trials[i] = (double) count_buf.load(0);
-        if (count_buf.load(0) > maxOccupancyBound) {
-            maxOccupancyBound = count_buf.load(0);
+        trials[i] = (double) count_buf.load<uint32_t>(0);
+        if (count_buf.load<uint32_t>(0) > maxOccupancyBound) {
+            maxOccupancyBound = count_buf.load<uint32_t>(0);
         }
 
         // Cleanup.
@@ -219,10 +219,9 @@ int main(int argc, char* argv[]) {
     testResults["testName"] = "Occupancy Discovery";
     testResults["deviceName"] = deviceName;
 
-    auto numTrials = 4;
+    auto numTrials = 8;
     auto numWorkgroups = 1024;
     testResults["numWorkgroups"] = numWorkgroups;
-    auto numIters = 1024;
     auto workgroupStepSize = maxWorkgroupSize / 8;
     auto localMemStepSize = maxLocalMemSize / 8;
 
