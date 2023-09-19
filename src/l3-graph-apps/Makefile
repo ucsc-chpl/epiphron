@@ -12,14 +12,14 @@ all: build easyvk build/$(BENCHMARK).run
 easyvk: 
 	make -C ../../easyvk
 
-build/$(BENCHMARK).run: graph_apps.cpp $(SPVS) $(CINITS)
+build/$(BENCHMARK).run: graph_apps.cpp $(SPVS) $(CINITS) common.h
 	mkdir -p data
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o $< -lvulkan -o $@
 
-build/%.spv: %.cl
+build/%.spv: %.cl common.h
 	clspv $(CLSPVFLAGS) $< -o $@
 
-build/%.cinit: %.cl
+build/%.cinit: %.cl common.h
 	clspv $(CLSPVFLAGS) --output-format=c  $< -o $@
 
 build:
