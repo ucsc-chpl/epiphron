@@ -17,7 +17,10 @@
 
 #ifdef __ANDROID__
 #include <android/log.h>
+#define USE_VALIDATION_LAYERS false
 #define APPNAME "GPUMutexTests"
+#else
+#define USE_VALIDATION_LAYERS true
 #endif
 
 using namespace std;
@@ -132,7 +135,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
         Buffer lockBuf = Buffer(device, 1, sizeof(uint32_t)); //
         Buffer resultBuf = Buffer(device, 1, sizeof(uint32_t)); //
         Buffer ticketBuf = Buffer(device, 1, sizeof(uint32_t)); //
-        Buffer backoffBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t));
+        Buffer backoffBuf = Buffer(device, (workgroup_size * workgroups) * 32, sizeof(unsigned char));
         //Buffer waitingBuf = Buffer(device, 1, sizeof(uint32_t));
         Buffer mutexItersBuf = Buffer(device, 1, sizeof(uint32_t));
         Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
@@ -161,9 +164,6 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
         }
         // Buffer Validation
         if (resultBuf.load<uint32_t>(0) != mutex_iters * test_iters * contention) errors += 1;
-        // for (int access = 0; access < size; access += 1) {
-        //     if (resultBuf.load<uint32_t>(access) != mutex_iters * test_iters * contention) errors += 1;
-        // }
         lockBuf.teardown();
         resultBuf.teardown();
         ticketBuf.teardown();
@@ -190,11 +190,11 @@ extern "C" void run_mutex_tests(easyvk::Device device) {
 
     uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
 
-    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_peeking.cinit"), "cas_lock_relaxed_peeking");
+    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_peeking.cinit"), "cas_lock_relaxed_peeking");
 
-    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock.cinit"), "cas_lock");
+    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock.cinit"), "cas_lock");
 
-    run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_backoff.cinit"), "cas_lock_backoff");
+    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_backoff.cinit"), "cas_lock_backoff");
 
     run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock.cinit"), "ticket_lock");
 
@@ -211,7 +211,7 @@ int main() {
         return 1;
     }
 
-    auto instance = easyvk::Instance(true);
+    auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	auto physicalDevices = instance.physicalDevices();
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
@@ -221,10 +221,6 @@ int main() {
 
         run_mutex_tests(device);
         device.teardown();
-        //benchmarkData.close();
-        //sleep(5);
-        //if (i == 1) benchmarkData.open("result.txt", fstream::out | fstream::trunc);
-
 
     }
     
@@ -232,6 +228,10 @@ int main() {
 
     instance.teardown();
 
+    #ifdef __ANDROID__
+    return 0;
+    #else
     system("python3 graph.py");
     return 0;
+    #endif
 }

@@ -1,4 +1,5 @@
-static void lock(global atomic_uint* l, volatile global uint* sleep) {
+static void lock(global atomic_uint* l, volatile global uchar* sleep) {
+    atomic_work_item_fence(CLK_GLOBAL_MEM_FENCE, memory_order_relaxed, memory_scope_device);
     uint e, acq, counter;
     counter = 1;
     e = 0;
@@ -23,7 +24,7 @@ static void unlock(global atomic_uint* l) {
     atomic_store(l, 0);
 }
 
-__kernel void mutex_test(__global atomic_uint* l, global uint* res, global uint* iters, volatile global uint* sleep) {
+__kernel void mutex_test(__global atomic_uint* l, global uint* res, global uint* iters, volatile global uchar* sleep) {
     uint x;
     for (uint i = 0; i < *iters; i++) {
         if (try_lock(l)); 
