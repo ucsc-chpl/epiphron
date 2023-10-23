@@ -1,5 +1,7 @@
 #define MIN_T 0.01f
 #define MAX_T 10000.0f
+#define FOV_DEGREES 90.0f
+#define PI 3.14159265359f
 
 
 typedef struct Sphere {
@@ -7,9 +9,16 @@ typedef struct Sphere {
     float r;
 } Sphere;
 
+typedef struct Triangle {
+    float pos[3];
+    float normal[3];
+} Triangle;
+
 typedef struct Scene {
     __global Sphere *spheres;
     uint num_spheres; 
+    __global Triangle *triangles;
+    uint num_triangles;
 } Scene;
 
 typedef struct HitInfo {
@@ -97,32 +106,42 @@ __kernel void render(__global uint *image_buffer,
                      __global uint *image_buf_width,
                      __global uint *image_buf_height,
                      __global Sphere *spheres,
-                     __global uint *num_spheres) {
+                     __global uint *num_spheres,
+                     __global Triangle *triangles,
+                     __global uint *num_triangles) {
 
     uint idx = get_global_id(0);
     if (idx >= image_buf_width[0] * image_buf_height[0]) {
         return;
     }
 
+    // Get the pixel (x, y) integer coordinate into the image buffer that this thread is responsible for.
+    // Convert that to a (u, v) normalized coordinate, where (0, 0) is bottom left and (1, 1) is top right.
     uint2 pixel_coord = indexToPosition(idx, image_buf_width[0], image_buf_height[0]);
     float2 uv = convert_float2(pixel_coord) / (float2)(convert_float(image_buf_width[0]), convert_float(image_buf_height[0]));
     uv.y = 1.0f - uv.y;
 
+    float focal_length = 1.0f / tan(FOV_DEGREES * 0.5f * PI / 180.0f);
+
+    // The initial view ray starts from the camera position (origin).
     float3 ray_origin = (float3) (0.0f, 0.0f, 0.0f);
     // calculate coordinates of the ray target on the imaginary pixel plane.
     // -1 to +1 on x,y axis. 1 unit away on the z axis
-    float3 ray_target = (float3) (uv * 2.0f - 1.0f, 1.0);
+    float3 ray_target = (float3) (uv * 2.0f - 1.0f, focal_length);
 
     // Correct for aspect ratio.
     float aspectRatio = convert_float(image_buf_width[0]) / convert_float(image_buf_height[0]);
     ray_target.y /= aspectRatio;
 
+    // The direction of the view ray from the camera origin to the image plane.
     float3 ray_dir = normalize(ray_target - ray_origin);
 
     // Init scene.
     Scene scene;
     scene.spheres = spheres;
-    scene.num_spheres = num_spheres[0];
+    scene.num_spheres = *num_spheres;
+    scene.triangles = triangles;
+    scene.num_triangles = *num_triangles;
 
     float3 col = trace_ray(ray_origin, ray_dir, &scene);
     write_color(idx, image_buffer, col);
