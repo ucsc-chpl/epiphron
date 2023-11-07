@@ -62,6 +62,8 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 	// Select device to use from the provided device index.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 	std::cout << "Running primitive barrier benchmark on " << device.properties.deviceName << "...\n";
+	auto maxLocalSize = device.properties.limits.maxComputeSharedMemorySize;
+	std::cout << "Max local memory size: " << device.properties.limits.maxComputeSharedMemorySize << "\n";
 
 	// Load the kernel.
 	std::vector<uint32_t> kernelCode = 
@@ -91,7 +93,7 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 		std::vector<ordered_json> benchmarkResults;
 		for (const auto &n : workgroupSizes) {
 			// Set up kernel inputs.
-			auto bufSize =  n * numWorkgroups;
+			auto bufSize =  static_cast<uint32_t>(maxLocalSize / 4); // buf of uint32_t's
 			auto buf = easyvk::Buffer(device, bufSize, sizeof(uint32_t));
 			auto buf_size = easyvk::Buffer(device, 1, sizeof(uint32_t));
 			auto num_iters = easyvk::Buffer(device, 1, sizeof(uint32_t));
@@ -144,53 +146,51 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 int main(int argc, char* argv[]) {
 	// BENCHMARK PARAMETERS
 	auto numTrials = 32;
-	auto numWorkgroups = 64;
-	auto numIters = 256 * 1; // # of iterations to run kernel loop
+	auto numWorkgroups = 36 * 1;
+	auto numIters = 1024 * 2; // # of iterations to run kernel loop
+	auto deviceIndex = 1;
 
 	// Run benchmark on every availible device.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
-	for (size_t deviceIndex = 0; deviceIndex < instance.physicalDevices().size(); deviceIndex++) {
-		// Query device properties.
-		auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
-		auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
-		auto deviceName = device.properties.deviceName;
-		device.teardown();
+	// Query device properties.
+	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
+	auto deviceName = device.properties.deviceName;
 
-		// "warm up" the GPU by giving it some initial work. If this is not done the 
-		// results of the first benchmark that is run will skewed for some reason.	
-		auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, 1024);
+	// "warm up" the GPU by giving it some initial work. If this is not done the 
+	// results of the first benchmark that is run will skewed for some reason.	
+	auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, 1024);
 
-		auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
 
-		primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
-		primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
-		primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
-		primitiveBarrierBenchmarkResult["numIters"] = numIters;
-		primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
+	primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
+	primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
+	primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
+	primitiveBarrierBenchmarkResult["numIters"] = numIters;
+	primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
 
-		// Write results to file.
-		// Get current time
-		std::time_t currentTime = std::time(nullptr);
-		std::tm* currentDateTime = std::localtime(&currentTime);
+	// Write results to file.
+	// Get current time
+	std::time_t currentTime = std::time(nullptr);
+	std::tm* currentDateTime = std::localtime(&currentTime);
 
-		// Create file name using current time and date
-		char filename[100];
-		std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
-		#ifdef __ANDROID__
-		std::ofstream outFile(filename);
-		#else
-		std::ofstream outFile(std::string("data/") + std::string(filename));
-		#endif
-		if (outFile.is_open()) {
-			outFile << primitiveBarrierBenchmarkResult.dump(4) << std::endl;
-			outFile.close();
-		} else {
-			std::cerr << "Failed to write test results to file!\n";
-		}
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+	// Create file name using current time and date
+	char filename[100];
+	std::strftime(filename, sizeof(filename), "result%Y-%m-%d_%H-%M-%S.json", currentDateTime);
+	#ifdef __ANDROID__
+	std::ofstream outFile(filename);
+	#else
+	std::ofstream outFile(std::string("data/") + std::string(filename));
+	#endif
+	if (outFile.is_open()) {
+		outFile << primitiveBarrierBenchmarkResult.dump(4) << std::endl;
+		outFile.close();
+	} else {
+		std::cerr << "Failed to write test results to file!\n";
 	}
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 
 	// Cleanup instance
+	device.teardown();
 	instance.teardown();
 	return 0;
 }
