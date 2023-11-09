@@ -77,7 +77,7 @@ def plot_from_json(filename):
     ax.set_ylabel('Time (\u03BCs)')
     # workgroup_size = data['deviceRuns'][0]['variedDispatch']['workGroupSize']
     device = data["deviceName"]
-    ax.set_title(f'numWorkgroups={data["numWorkgroups"]}, {device}')
+    ax.set_title(f'{device}')
     ax.legend()
     ax.grid(True)
 
