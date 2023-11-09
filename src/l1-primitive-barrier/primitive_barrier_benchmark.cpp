@@ -53,12 +53,89 @@ std::vector<int> getWorkgroupSizes() {
 	return workgroupSizes;
 }
 
+uint32_t getOccupancy(easyvk::Instance instance,
+                      easyvk::Device device,
+					  size_t numTrials,
+					  size_t workgroupSize) {
+	// Load the kernel.
+	std::vector<uint32_t> kernelCode = 
+	#include "build/primitive_barrier_occupancy.cinit"
+	;
 
-ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
-                                         size_t deviceIndex,
-									     size_t numTrials,
-										 size_t numWorkgroups,
-										 size_t numIters) {
+	// All bencmarks are contained in the single kernel and we can specify which 
+	// one to run by selecting the entry point.
+	std::vector<const char*> entryPoints = {
+        "noBarrier", // Occupancy should be the same for each kernel?
+        // "localSubgroupBarrier",
+        // "globalSubgroupBarrier",
+        // "localWorkgroupBarrier",
+        // "globalWorkgroupBarrier"
+    };
+
+	auto numWorkgroups = 1024;
+
+	// Set up kernel inputs.
+	auto bufSize =  static_cast<uint32_t>(8192); // buf of uint32_t's
+	auto buf = easyvk::Buffer(device, bufSize, sizeof(uint32_t));
+	auto buf_size = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	buf_size.store<uint32_t>(0, bufSize);
+	auto num_iters = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	num_iters.store<uint32_t>(0, 2);
+	auto count_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	auto poll_open_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	auto M_buf = easyvk::Buffer(device, numWorkgroups, sizeof(uint32_t));
+	auto now_serving_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	auto next_ticket_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	auto local_mem_size_buf = easyvk::Buffer(device, 1, sizeof(uint32_t));
+	count_buf.store<uint32_t>(0, 0);
+	poll_open_buf.store<uint32_t>(0, 1); // Poll is initially open.
+	next_ticket_buf.store<uint32_t>(0, 0);
+	now_serving_buf.store<uint32_t>(0, 0);
+
+	std::vector<easyvk::Buffer> kernelInputs = {buf,
+												buf_size,
+												num_iters,
+												count_buf,
+												poll_open_buf,
+												M_buf,
+												now_serving_buf,
+												next_ticket_buf};
+
+	// Initialize kernel.
+	auto program = easyvk::Program(device, kernelCode, kernelInputs);
+	program.setWorkgroups(numWorkgroups);
+	program.setWorkgroupSize(workgroupSize);
+	program.initialize(entryPoints[0]);
+
+	// Run the kernel.
+	uint32_t maxOccupancyBound = 0;
+	for (auto i = 0; i < numTrials; i++) {
+		program.run();
+        if (count_buf.load<uint32_t>(0) > maxOccupancyBound) {
+            maxOccupancyBound = count_buf.load<uint32_t>(0);
+        }
+	}
+
+	// std::cout << "Occupancy bound: " << maxOccupancyBound << "\n";
+
+	// Cleanup program.
+	program.teardown();
+	buf.teardown();
+	buf_size.teardown();
+	num_iters.teardown();
+	count_buf.teardown();
+	poll_open_buf.teardown();
+	next_ticket_buf.teardown();
+	now_serving_buf.teardown();
+
+	return maxOccupancyBound;
+}
+
+ordered_json primitiveBarrierBenchmark(easyvk::Instance instance,
+                                       size_t deviceIndex,
+								       size_t numTrials,
+								       size_t numIters) {
+
 	// Select device to use from the provided device index.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
 	std::cout << "Running primitive barrier benchmark on " << device.properties.deviceName << "...\n";
@@ -87,13 +164,16 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 	ordered_json primitiveBarrierBenchmarkResults;
 
 	// Set up and run each primitive barrier benchmark.
-    for (const auto& entryPoint : entryPoints) {
-		std::cout << "Starting " << entryPoint << " benchmark...\n";
+    for (size_t i = 0; i < entryPoints.size(); i++) {
+		std::cout << "Starting " << entryPoints[i] << " benchmark...\n";
 		// Parameterize across workgroup size; all other params stay fixed.
 		std::vector<ordered_json> benchmarkResults;
 		for (const auto &n : workgroupSizes) {
+			// Get occupancy bound.
+			uint occupancyBound = getOccupancy(instance, device, 8, n);
+
 			// Set up kernel inputs.
-			auto bufSize =  static_cast<uint32_t>(maxLocalSize / 4); // buf of uint32_t's
+			auto bufSize =  static_cast<uint32_t>(8192); // buf of uint32_t's
 			auto buf = easyvk::Buffer(device, bufSize, sizeof(uint32_t));
 			auto buf_size = easyvk::Buffer(device, 1, sizeof(uint32_t));
 			auto num_iters = easyvk::Buffer(device, 1, sizeof(uint32_t));
@@ -104,15 +184,17 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 
 			// Initialize kernel.
 			auto program = easyvk::Program(device, kernelCode, kernelInputs);
-			program.setWorkgroups(numWorkgroups);
+			program.setWorkgroups(occupancyBound);
 			program.setWorkgroupSize(n);
-			program.initialize(entryPoint);
+			program.initialize(entryPoints[i]);
 
 			// Run the kernel.
-			std::vector<double> times(numTrials);
-			for (auto i = 0; i < numTrials; i++) {
+			std::vector<double> times;
+			for (auto j = 0; j < numTrials; j++) {
 				auto kernelTime = program.runWithDispatchTiming();
-				times[i] = kernelTime / (double) 1000.0; // Convert from nanoseconds to microseconds.
+				if (j > 32) {
+					times.push_back(kernelTime / (double) 1000.0); // Convert from nanoseconds to microseconds.
+				}
 			}
 
 			auto avgTime = calculate_average(times);
@@ -123,6 +205,7 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 			res["workgroupSize"] = n;
 			res["avgTime"] = avgTime;
 			res["stdDev"] = timeStdDev;
+			res["numWorkgroups"] = occupancyBound;
 			benchmarkResults.emplace_back(res);
 
 			// Cleanup program.
@@ -130,10 +213,9 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 			buf.teardown();
 			buf_size.teardown();
 			num_iters.teardown();
-
 		}
-		primitiveBarrierBenchmarkResults[entryPoint] = benchmarkResults;
-		std::cout << entryPoint << " benchmark finished!\n";
+		primitiveBarrierBenchmarkResults[entryPoints[i]] = benchmarkResults;
+		std::cout << entryPoints[i] << " benchmark finished!\n";
     }
 
 	device.teardown();
@@ -145,10 +227,9 @@ ordered_json primitive_barrier_benchmark(easyvk::Instance instance,
 
 int main(int argc, char* argv[]) {
 	// BENCHMARK PARAMETERS
-	auto numTrials = 32;
-	auto numWorkgroups = 36 * 1;
-	auto numIters = 1024 * 2; // # of iterations to run kernel loop
-	auto deviceIndex = 1;
+	auto numTrials = 64;
+	auto numIters = 1024 * 4; // # of iterations to run kernel loop
+	auto deviceIndex = 0;
 
 	// Run benchmark on every availible device.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
@@ -158,15 +239,14 @@ int main(int argc, char* argv[]) {
 
 	// "warm up" the GPU by giving it some initial work. If this is not done the 
 	// results of the first benchmark that is run will skewed for some reason.	
-	auto _ = primitive_barrier_benchmark(instance, deviceIndex, 8, numWorkgroups, 1024);
+	// auto _ = primitiveBarrierBenchmark(instance, deviceIndex, 32, 1024);
 
-	auto primitiveBarrierBenchmarkResult = primitive_barrier_benchmark(instance, deviceIndex, numTrials, numWorkgroups, numIters);
+	auto primitiveBarrierBenchmarkResult = primitiveBarrierBenchmark(instance, deviceIndex, numTrials, numIters);
 
 	primitiveBarrierBenchmarkResult["benchmarkName"] = "primitiveBarrier";
 	primitiveBarrierBenchmarkResult["deviceName"] = deviceName;
 	primitiveBarrierBenchmarkResult["numTrials"] = numTrials;
 	primitiveBarrierBenchmarkResult["numIters"] = numIters;
-	primitiveBarrierBenchmarkResult["numWorkgroups"] = numWorkgroups;
 
 	// Write results to file.
 	// Get current time
