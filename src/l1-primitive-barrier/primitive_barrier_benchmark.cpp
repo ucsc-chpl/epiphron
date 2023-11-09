@@ -188,13 +188,18 @@ ordered_json primitiveBarrierBenchmark(easyvk::Instance instance,
 			program.setWorkgroupSize(n);
 			program.initialize(entryPoints[i]);
 
+			if (i == 0) {
+				// "warm up" the GPU if we are running the first benchmark.
+				for (auto j = 0; j < numTrials; j++) {
+					program.run();
+				}
+			}
+
 			// Run the kernel.
 			std::vector<double> times;
 			for (auto j = 0; j < numTrials; j++) {
 				auto kernelTime = program.runWithDispatchTiming();
-				if (j > 32) {
-					times.push_back(kernelTime / (double) 1000.0); // Convert from nanoseconds to microseconds.
-				}
+				times.push_back(kernelTime / (double) 1000.0); // Convert from nanoseconds to microseconds.
 			}
 
 			auto avgTime = calculate_average(times);
@@ -227,7 +232,7 @@ ordered_json primitiveBarrierBenchmark(easyvk::Instance instance,
 
 int main(int argc, char* argv[]) {
 	// BENCHMARK PARAMETERS
-	auto numTrials = 64;
+	auto numTrials = 32;
 	auto numIters = 1024 * 4; // # of iterations to run kernel loop
 	auto deviceIndex = 0;
 
