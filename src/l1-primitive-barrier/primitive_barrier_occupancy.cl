@@ -1,4 +1,4 @@
-#define LOCAL_BUF_SIZE 8192
+#define LOCAL_BUF_SIZE 1024 // Don't change me! I'm modified by host code.
 #define PARTICIPATING 1
 #define NON_PARTICIPATING 0
 
@@ -42,7 +42,7 @@ static uint get_occupancy(__global uint *count,
 
 // We only need to run occupancy discovery on this kernel. 
 // Occupancy will be exactly the same for each kernel.
-kernel void noBarrier(global uint *buf,
+kernel void noBarrier(global uchar *buf,
                       global uint *buf_size,
                       global uint *num_iters,
                       global uint *count,
@@ -58,7 +58,7 @@ kernel void noBarrier(global uint *buf,
     work_group_barrier(CLK_GLOBAL_MEM_FENCE);
 
     // Workgroup-local memory.
-    local uint local_buf[LOCAL_BUF_SIZE]; 
+    local uchar local_buf[LOCAL_BUF_SIZE]; 
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;

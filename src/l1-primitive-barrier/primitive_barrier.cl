@@ -1,8 +1,8 @@
-#define LOCAL_BUF_SIZE 256 * 1
+#define LOCAL_BUF_SIZE 1024 // Don't change me! I'm modified by host code.
 
-kernel void noBarrier(global uint *buf, global uint *buf_size, global uint *num_iters) {
+kernel void noBarrier(global uchar *buf, global uint *buf_size, global uint *num_iters) {
     // Workgroup-local memory.
-    local uint local_buf[LOCAL_BUF_SIZE]; 
+    local uchar local_buf[LOCAL_BUF_SIZE]; 
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;
@@ -13,9 +13,9 @@ kernel void noBarrier(global uint *buf, global uint *buf_size, global uint *num_
     }
 }
 
-kernel void localSubgroupBarrier(global uint *buf, global uint *buf_size, global uint *num_iters) {
+kernel void localSubgroupBarrier(global uchar *buf, global uint *buf_size, global uint *num_iters) {
     // Workgroup-local memory.
-    local uint local_buf[LOCAL_BUF_SIZE]; 
+    local uchar local_buf[LOCAL_BUF_SIZE]; 
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;
@@ -28,8 +28,8 @@ kernel void localSubgroupBarrier(global uint *buf, global uint *buf_size, global
     }
 }
 
-kernel void globalSubgroupBarrier(global uint *buf, global uint *buf_size, global uint *num_iters) {
-    local uint local_buf[LOCAL_BUF_SIZE]; 
+kernel void globalSubgroupBarrier(global uchar *buf, global uint *buf_size, global uint *num_iters) {
+    local uchar local_buf[LOCAL_BUF_SIZE]; 
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;
@@ -42,8 +42,8 @@ kernel void globalSubgroupBarrier(global uint *buf, global uint *buf_size, globa
     }
 }
 
-kernel void localWorkgroupBarrier(global uint *buf, global uint *buf_size, global uint *num_iters) {
-    local uint local_buf[LOCAL_BUF_SIZE]; 
+kernel void localWorkgroupBarrier(global uchar *buf, global uint *buf_size, global uint *num_iters) {
+    local uchar local_buf[LOCAL_BUF_SIZE]; 
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;
@@ -56,8 +56,8 @@ kernel void localWorkgroupBarrier(global uint *buf, global uint *buf_size, globa
     }
 }
 
-kernel void globalWorkgroupBarrier(global uint *buf, global uint *buf_size, global uint *num_iters) {
-    local uint local_buf[LOCAL_BUF_SIZE];
+kernel void globalWorkgroupBarrier(global uchar *buf, global uint *buf_size, global uint *num_iters) {
+    local uchar local_buf[LOCAL_BUF_SIZE];
     for (uint i = 0; i < *num_iters; i++) {
         // Modify local memory.
         uint local_idx = (get_local_id(0) + i) % LOCAL_BUF_SIZE;
