@@ -157,8 +157,10 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
     // Contention/Padding Values
     list<uint32_t> test_values;
 
-    
-    for (uint32_t i = 1; i <= 1024; i *= 2) { //1024 for global, 64 local
+    uint32_t tmp;
+    if (workgroups * workgroup_size > 1024) tmp = 1024;
+    else tmp = workgroup_size * workgroups;
+    for (uint32_t i = 1; i <= tmp; i *= 2) { //1024 for global, 64 local
         test_values.push_back(i);  
     } 
 
@@ -215,17 +217,27 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             Buffer paddingBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
+            Buffer indexBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); // y
+            if (thread_dist) { //chunking
+                for (int i = 0; i < workgroup_size * workgroups; i += 1) {
+                    indexBuf.store<uint32_t>(i, (i / contention) * padding);
+                }
+            } else { //striding
+                for (int i = 0; i < workgroup_size * workgroups; i += 1) {
+                    indexBuf.store<uint32_t>(i, i * padding % size);
+                }
+            }
             sizeBuf.store(0, size);
             paddingBuf.store(0, padding);
             contentionBuf.store(0, contention);
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
                 resultBuf.clear();
-                vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
+                vector<Buffer> buffers = {resultBuf, rmwItersBuf, indexBuf};
                 if (thread_dist) { // Chunking
-                    buffers.emplace_back(contentionBuf);
+                    //buffers.emplace_back(contentionBuf);
                 } else { // Striding
-                    buffers.emplace_back(sizeBuf);
+                    //buffers.emplace_back(sizeBuf);
                     if (test_name == "atomic_fa_relaxed_local" || test_name == "atomic_fa_local") {
                         buffers.emplace_back(contentionBuf); //local striding
                     }
@@ -243,6 +255,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             paddingBuf.teardown();
             rmwItersBuf.teardown();
             contentionBuf.teardown();
+            indexBuf.teardown();
             // if (expected_rate > observed_rate) {
             //     benchmarkData << to_string(expected_rate/observed_rate) + ")" << endl;
             // } else {
