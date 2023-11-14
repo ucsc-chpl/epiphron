@@ -282,14 +282,15 @@ ordered_json primitiveBarrierBenchmark(easyvk::Instance instance,
 int main(int argc, char* argv[]) {
 	// BENCHMARK PARAMETERS
 	auto numTrials = 32;
-	auto numIters = 1024 * 16; // # of iterations to run kernel loop
-	auto deviceIndex = 2;
+	auto numIters = 1024 * 2; // # of iterations to run kernel loop
+	auto deviceIndex = 0;
 
 	// Run benchmark on every availible device.
 	auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	// Query device properties.
 	auto device = easyvk::Device(instance, instance.physicalDevices().at(deviceIndex));
-	auto bufferSize = 32768; // Size to set the local and global scratchpad buffers.
+	// auto bufferSize = 32768; // Size to set the local and global scratchpad buffers.
+	auto bufferSize = device.properties.limits.maxComputeSharedMemorySize;
 
 	// "warm up" the GPU by giving it some initial work. If this is not done the 
 	// results of the first benchmark that is run will skewed for some reason.	
