@@ -107,5 +107,6 @@ filename = "result.txt"
 coordinates = extract_coordinates_from_file(filename)
 titles = set(coord[3] for coord in coordinates)
 for title in sorted(titles):
-    graph_coordinates = [c for c in coordinates if c[3] == title]
-    generate_heatmap(graph_coordinates, title)
+    if "random_access" not in title:
+        graph_coordinates = [c for c in coordinates if c[3] == title]
+        generate_heatmap(graph_coordinates, title)

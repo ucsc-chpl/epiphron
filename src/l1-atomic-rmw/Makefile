@@ -1,5 +1,5 @@
 CXXFLAGS = -std=c++17
-CINITS = $(patsubst %.cl,%.cinit,$(wildcard chunking/*.cl striding/*.cl))
+CINITS = $(patsubst %.cl,%.cinit,$(wildcard branched/*.cl contiguous_access/*.cl random_access/*.cl cross_warp/*.cl *.cl))
 all: easyvk atomic_rmw_test
 
 easyvk:
@@ -18,9 +18,15 @@ android: easyvk atomic_rmw_test
 	clspv -cl-std=CL2.0 -inline-entry-points -output-format=c $< -o $@
 
 clean:
-	rm -rf chunking/*.cinit
-	rm -rf chunking/*.spv
-	rm -rf striding/*.cinit
-	rm -rf striding/*.spv
+	rm -rf branched/*.cinit
+	rm -rf branched/*.spv
+	rm -rf contiguous_access/*.cinit
+	rm -rf contiguous_access/*.spv
+	rm -rf random_access/*.cinit
+	rm -rf random_access/*.spv
+	rm -rf cross_warp/*.cinit
+	rm -rf cross_warp/*.spv
+	rm -rf *.cinit
+	rm -rf *.spv
 	rm -rf build
 	rm *.run

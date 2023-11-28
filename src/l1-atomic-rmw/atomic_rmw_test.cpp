@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstdlib>
+#include <random>
 
 #include "easyvk.h"
 #include "../_example/json.h"
@@ -99,7 +100,6 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
     rmwProgram.initialize("rmw_test");
     
     float rate = 0.0;
-    vector<float> rates;
     for (int i = 1; i <= test_iters; i++) {
         auto start = high_resolution_clock::now();
         rmwProgram.run();
@@ -108,159 +108,123 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
         auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
         auto duration = s2 - s1;
         rate += (float(rmw_iters) / static_cast<float>(duration));
-        rates.push_back(float(rmw_iters) / static_cast<float>(duration));
     }
     rate /= float(test_iters);
     rmwProgram.teardown();
     return rate;
-    // if (isinf(rate)) {
-    //     return rate;
-    // }
-    // // Calculate the variance of the rates
-    // float variance = 0.0;
-    // for (float r : rates) {
-    //     variance += pow(r - rate, 2);
-    // }
-    // variance /= float(test_iters);
-    // //rate /= float(test_iters);
-    // rmwProgram.teardown();
-    // //return rate;
-    // return variance;
 }
 
-extern "C" float striding_performance_model(float peak_throughput, uint32_t X, uint32_t C, uint32_t P) {
-    if ((C <= X) && P == 1) {
-        return peak_throughput;
-    } 
-    if ((C >= (P * X)) && (P >= 1 && P <= X/4)) {
-        return peak_throughput * static_cast<float>(X) / static_cast<float>(C);
-    } 
-    else if (((X * P) > C) && (P > 1 && P <= X/4)) {
-        return peak_throughput / static_cast<float>(P);
-    }
-    else if (P > X/4) {
-        return peak_throughput / 20.0;
-    }
-    return 0.0;
+extern "C" uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters) {
+        
+        int maxOccupancyBound = -1;
+        for (int i = 0; i < test_iters; i++) {
+            Buffer count_buf = Buffer(device, 1, sizeof(uint32_t));
+            count_buf.store<uint32_t>(0, 0);
+            Buffer poll_open_buf = Buffer(device, 1, sizeof(uint32_t));
+            poll_open_buf.store<uint32_t>(0, 1); // Poll is initially open.
+            Buffer M_buf = Buffer(device, workgroups, sizeof(uint32_t));
+            Buffer now_serving_buf = Buffer(device, 1, sizeof(uint32_t));
+            now_serving_buf.store<uint32_t>(0, 0);
+            Buffer next_ticket_buf = Buffer(device, 1, sizeof(uint32_t));
+            next_ticket_buf.store<uint32_t>(0, 0);
+
+            vector<Buffer> kernelInputs = {            count_buf, 
+                                                        poll_open_buf,
+                                                        M_buf,
+                                                        now_serving_buf,
+                                                        next_ticket_buf};
+            auto program = Program(device, spv_code, kernelInputs);
+            program.setWorkgroups(workgroups);
+            program.setWorkgroupSize(workgroup_size);
+            program.initialize("occupancy_discovery");
+            program.run();
+            if ((int) count_buf.load<uint32_t>(0) > maxOccupancyBound) {
+                maxOccupancyBound = count_buf.load<uint32_t>(0);
+            }
+            program.teardown();
+            count_buf.teardown();
+            poll_open_buf.teardown();
+            M_buf.teardown();
+            next_ticket_buf.teardown();
+            now_serving_buf.teardown();
+        }
+
+        return (uint32_t) maxOccupancyBound;
+
+
 }
 
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, uint32_t thread_dist, vector<uint32_t> spv_code, string test_name) {
 
-    string folder;
-    if (thread_dist) folder = "chunking";
-    else folder = "striding";
+extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name) {
+
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
-    sprintf(currentTest, ", %s: %s\n", folder.c_str(), test_name.c_str());
+    sprintf(currentTest, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
     benchmarkData << currentTest;
 
     // Contention/Padding Values
     list<uint32_t> test_values;
-
     uint32_t tmp;
     if (workgroups * workgroup_size > 1024) tmp = 1024;
     else tmp = workgroup_size * workgroups;
     for (uint32_t i = 1; i <= tmp; i *= 2) { //1024 for global, 64 local
         test_values.push_back(i);  
     } 
-
-    // Find Peak
-    // float peak_throughput = 0.0;
-    // for (uint32_t c = 1; c <= 64; c *= 2) { 
-    //     uint32_t contention = c;
-    //     uint32_t padding = 1;
-    //     const int size = ((workgroup_size * workgroups) * padding) / contention;
-    //     uint32_t rmw_iters = 64;
-    //     float curr_throughput = 0.0;
-    //     Buffer resultBuf = Buffer(device, size);
-    //     Buffer sizeBuf = Buffer(device, 1);
-    //     Buffer paddingBuf = Buffer(device, 1);
-    //     Buffer rmwItersBuf = Buffer(device, 1);
-    //     Buffer contentionBuf = Buffer(device, 1);
-    //     sizeBuf.store(0, size);
-    //     paddingBuf.store(0, padding);
-    //     contentionBuf.store(0, contention);
-    //     while(true) {
-    //         rmwItersBuf.store(0, rmw_iters);
-    //         resultBuf.clear();
-    //         vector<Buffer> buffers = {resultBuf, rmwItersBuf, paddingBuf};
-    //         if (thread_dist) { // Chunking
-    //             buffers.emplace_back(contentionBuf);
-    //             curr_throughput = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-    //         } else { // Striding
-    //             buffers.emplace_back(sizeBuf);
-    //             curr_throughput = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-    //             //buffers.emplace_back(contentionBuf); //local striding
-    //         }
-    //         if (isinf(curr_throughput)) rmw_iters *= 2;
-    //         else break;
-    //     }
-    //     if (curr_throughput > peak_throughput) peak_throughput = curr_throughput;
-    //     resultBuf.teardown();
-    //     sizeBuf.teardown();
-    //     paddingBuf.teardown();
-    //     rmwItersBuf.teardown();
-    //     contentionBuf.teardown();
-    // }
     int errors = 0;
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
+        int random_access_status = 0;
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
+            if (!random_access_status && thread_dist == "random_access") random_access_status = 1;
+            else if (random_access_status && thread_dist == "random_access") continue;
+
             uint32_t contention = *it1;
             uint32_t padding = *it2;
-            float expected_rate, observed_rate = 0.0;
+            float observed_rate = 0.0;
             benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
-            //expected_rate = striding_performance_model(peak_throughput, (workgroups * workgroup_size) / device.properties.limits.maxComputeWorkGroupInvocations, contention, padding);
             const int size = ((workgroup_size * workgroups) * padding) / contention;
-            uint32_t rmw_iters = 8;
-            Buffer resultBuf = Buffer(device, size, sizeof(uint32_t));
+            uint32_t rmw_iters = 16;
+
+            Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
             Buffer sizeBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer paddingBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer indexBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); // y
-            if (thread_dist) { //chunking
-                for (int i = 0; i < workgroup_size * workgroups; i += 1) {
-                    indexBuf.store<uint32_t>(i, (i / contention) * padding);
-                }
-            } else { //striding
-                for (int i = 0; i < workgroup_size * workgroups; i += 1) {
-                    indexBuf.store<uint32_t>(i, i * padding % size);
+            Buffer stratBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+            Buffer branchBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+
+            random_device rd;
+            mt19937 gen(rd()); 
+            uniform_int_distribution<> distribution(0, contention-1);
+            for (int i = 0; i < workgroup_size * workgroups; i += 1) {
+                if (thread_dist == "branched") {    
+                    branchBuf.store<uint32_t>(i, i % 2);
+                    stratBuf.store<uint32_t>(i, (i * padding) % size);
+                } else if (thread_dist == "cross_warp") {
+                    stratBuf.store<uint32_t>(i, (i * padding) % size);
+                } else if (thread_dist == "contiguous_access") {
+                    stratBuf.store<uint32_t>(i, (i / contention) * padding);
+                } else if (thread_dist == "random_access") {
+                    stratBuf.store<uint32_t>(i, distribution(gen));
                 }
             }
-            sizeBuf.store(0, size);
-            paddingBuf.store(0, padding);
-            contentionBuf.store(0, contention);
+            sizeBuf.store(0, contention);
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
                 resultBuf.clear();
-                vector<Buffer> buffers = {resultBuf, rmwItersBuf, indexBuf};
-                if (thread_dist) { // Chunking
-                    //buffers.emplace_back(contentionBuf);
-                } else { // Striding
-                    //buffers.emplace_back(sizeBuf);
-                    if (test_name == "atomic_fa_relaxed_local" || test_name == "atomic_fa_local") {
-                        buffers.emplace_back(contentionBuf); //local striding
-                    }
-                }
+                vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
+                if (thread_dist == "branched") buffers.emplace_back(branchBuf);
+                else if (thread_dist == "random_access") buffers.emplace_back(sizeBuf);
                 observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
                 if (isinf(observed_rate)) rmw_iters *= 2;
                 else break;
             }
-            // Buffer Validation
+            // Buffer Validation (Expect errors for branched and random access)
             for (int access = 0; access < size; access += padding) {
                 if (resultBuf.load<uint32_t>(access) != rmw_iters * test_iters * contention) errors += 1;
             }
             resultBuf.teardown();
             sizeBuf.teardown();
-            paddingBuf.teardown();
             rmwItersBuf.teardown();
-            contentionBuf.teardown();
-            indexBuf.teardown();
-            // if (expected_rate > observed_rate) {
-            //     benchmarkData << to_string(expected_rate/observed_rate) + ")" << endl;
-            // } else {
-            //     benchmarkData << to_string(observed_rate/expected_rate) + ")" << endl;
-            // }
+            branchBuf.teardown();
+            stratBuf.teardown();
             benchmarkData << to_string(observed_rate) + ")" << endl;
         }
     }
@@ -268,37 +232,24 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
     return;
 }
 
-extern "C" void run_rmw_tests(easyvk::Device device) {
+extern "C" void run_rmw_tests(easyvk::Device device) {  
     uint32_t test_iters = 64;
-
-    uint32_t maxComputeWorkGroupCount = device.properties.limits.maxComputeWorkGroupCount[0];
-    if (maxComputeWorkGroupCount > 65536) maxComputeWorkGroupCount = 65536;
-
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    if (workgroup_size > 1024) workgroup_size = 1024;
-
-    double quotient = static_cast<double>(maxComputeWorkGroupCount) / workgroup_size;
-
-    uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
-
-
-    vector<string> thread_dist = {"striding", "chunking"};
+    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, getSPVCode("occupancy_discovery.cinit"), 16);
+    vector<string> thread_dist = {
+        "branched",
+        "cross_warp",
+        "contiguous_access",
+        //"random_access"
+    };
     vector<string> atomic_rmws = {
-        "atomic_cas_succeed_store", "atomic_cas_succeed_no_store", 
-        "atomic_cas_fail_no_store", "atomic_ex_relaxed", 
-        "atomic_fa_relaxed", "atomic_ex", "atomic_fa", 
-        "atomic_fa_local", "atomic_fa_relaxed_local"
+        "atomic_fa_relaxed"
     };
 
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
-            int isChunking = (strategy == "chunking") ? 1 : 0;
-            if (rmw == "atomic_fa_relaxed_local" || rmw == "atomic_fa_local") {
-                //run(device, 1, 64, test_iters, isChunking, getSPVCode(strategy + "/" + rmw + ".cinit"), rmw);
-                //run(device, 64, 64, test_iters, isChunking, getSPVCode(strategy + "/" + rmw + ".cinit"), rmw);
-            } else {
-                run(device, workgroups, workgroup_size, test_iters, isChunking, getSPVCode(strategy + "/" + rmw + ".cinit"), rmw);
-            }
+            vector<uint32_t> spv_code = getSPVCode(strategy + "/" + rmw + ".cinit");
+            run(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
         }
     }
     return;
@@ -316,7 +267,6 @@ int main() {
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
 
-        if (i != 0) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 
         run_rmw_tests(device);
@@ -331,6 +281,7 @@ int main() {
     return 0;
     #else
     system("python3 heatmap.py");
+    system("python3 random_access.py");
     return 0;
     #endif
 
