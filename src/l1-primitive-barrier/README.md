@@ -1,6 +1,24 @@
 # l1-primitive-barrier
 
 
+## How to Run
+The following benchmark parameters can be manually changed in the source code:
+
+- `numTrials`: Number of times to run each benchmark. Results are an average of these trials.
+- `numIters`: Number of iterations to run the kernel loop. Used to increase/decrease the amount of work that gets done on the GPU.
+- `deviceIndex`: Which device to use.
+
+Other parameters, such as number of workgroups and the amount of local memory is automatically configured to maximize occupancy.
+
+Run the benchmark:
+
+`./build/primitive_barrier_bechmark.run`
+
+Benchmark results will be written to `data/`.
+To convert every benchmark result into a plot, run
+
+`python plot_data.py data/`
+
 ## Background 
 
 GPU programming models typically provide an execution and memory abstraction which reflects the hiearchical nature of the hardware. 
