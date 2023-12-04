@@ -101,13 +101,15 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
     
     float rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
-        auto start = high_resolution_clock::now();
-        rmwProgram.run();
-        auto stop = high_resolution_clock::now();
-        auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
-        auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
-        auto duration = s2 - s1;
-        rate += (float(rmw_iters) / static_cast<float>(duration));
+        // auto start = high_resolution_clock::now();
+        // rmwProgram.run();
+        // auto stop = high_resolution_clock::now();
+        // auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
+        // auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
+        // auto duration = s2 - s1;
+        // rate += (float(rmw_iters * workgroup_size * workgroups) / static_cast<float>(duration));
+        auto kernelTime = rmwProgram.runWithDispatchTiming();
+        rate += (float(rmw_iters * workgroup_size * workgroups) / float((kernelTime / (double) 1000.0))); 
     }
     rate /= float(test_iters);
     rmwProgram.teardown();
@@ -157,6 +159,7 @@ extern "C" uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgrou
 
 extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name) {
 
+    if (thread_dist == "random_access" && test_name == "atomic_fa_relaxed_out") return;
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
     sprintf(currentTest, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
@@ -184,12 +187,14 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             const int size = ((workgroup_size * workgroups) * padding) / contention;
             uint32_t rmw_iters = 16;
 
+            // thread_dist == "random_access" ? contention : size -> contention breaks on AMD Discrete
             Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
             Buffer sizeBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer stratBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
             Buffer branchBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
 
+            Buffer outBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, contention-1);
@@ -212,6 +217,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
                 vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
                 if (thread_dist == "branched") buffers.emplace_back(branchBuf);
                 else if (thread_dist == "random_access") buffers.emplace_back(sizeBuf);
+                if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(outBuf);
                 observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
                 if (isinf(observed_rate)) rmw_iters *= 2;
                 else break;
@@ -225,6 +231,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             rmwItersBuf.teardown();
             branchBuf.teardown();
             stratBuf.teardown();
+            outBuf.teardown();
             benchmarkData << to_string(observed_rate) + ")" << endl;
         }
     }
@@ -243,7 +250,8 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
         //"random_access"
     };
     vector<string> atomic_rmws = {
-        "atomic_fa_relaxed"
+        "atomic_fa_relaxed",
+        //"atomic_fa_relaxed_out",
     };
 
     for (const string& strategy : thread_dist) {
@@ -266,6 +274,7 @@ int main() {
 	auto physicalDevices = instance.physicalDevices();
 
     for (size_t i = 0; i < physicalDevices.size(); i++) {
+
 
         auto device = easyvk::Device(instance, physicalDevices.at(i));
 

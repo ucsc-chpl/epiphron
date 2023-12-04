@@ -38,7 +38,7 @@ def generate_heatmap(coordinates, title):
  data_max = math.floor(np.max(data_array))
 
  # Set up the figure and axes
- fig, ax = plt.subplots()
+ fig, ax = plt.subplots(figsize=(10, 8), dpi=300)
 
  # Create the heatmap
  heatmap = ax.imshow(data_array, cmap='viridis', vmin=data_min, vmax=data_max)
@@ -60,18 +60,20 @@ def generate_heatmap(coordinates, title):
  # Add text annotations for data points
  for i in range(data_array.shape[0]):
     for j in range(data_array.shape[1]):
-        text = ax.text(j, i, round(data_array[i][j], 2),
-                    ha="center", va="center", color="w", fontsize=4, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
+        text = ax.text(j, i, int(data_array[i][j]),
+                    ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
  # Customize the color bar range
- cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[data_min, math.floor(data_max/3), math.floor(data_max/2), data_max])
+ 
+ cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+ cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
 
  ax.invert_yaxis()  # Invert the y-axis
  
  description = title_information[1].split(", ")
- plt.text(-0.42, 1.1, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
- plt.text(-0.42, 1.03, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
- plt.text(-0.42, 0.98, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
+ plt.text(-0.32, 1.1, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
+ plt.text(-0.32, 1.03, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
+ plt.text(-0.32, 0.98, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
  plt.title(description[1])
 
  save_folder = "heatmaps"
