@@ -14,16 +14,25 @@ However, very little is known about these characteristics of GPU's architecture 
 
 OpenCL is a Khronos standard which means it is defined by the Khronos group, all the graphics card companies are members. There's a number of implementations of this from different GPU vendors. When you write an OpenCL program, you write a C program that is going to run on the GPU and you will write a C program that is going to run on the host. The host will run device program or kernel launching APIs to launch those kernels on the GPU.
 
-![OpenCL Memory Model (from [Khronos 2011])](https://drive.google.com/uc?id=1hGx5pzDK1TeXS4nzFqy5p1dfOtdR-1NU)
-
+<p align="center">
+<figure>
+  <img src="https://drive.google.com/uc?id=1hGx5pzDK1TeXS4nzFqy5p1dfOtdR-1NU" alt="OpenCL Memory Model (from [Khronos 2011])" width="300">
+  <figcaption>OpenCL Memory Model (from [Khronos 2011])</figcaption>
+</figure>
+</p>
 
 All threads executing a kernel can access the device’s global memory; where threads can perform a variety of read-modify-write instructions with this memory. And these threads in the same workgroup can communicate through faster local memory
 
 ## Heterogeneous System Architecture Cache Hierarchy
 
-![From Paper "Synchronization Using Remote-Scope Promotion"](https://drive.google.com/uc?id=1pZL3SoEZvNtDAlGZmDH3yFFpeV9YC9CV)
+<p align="center">
+<figure>
+  <img src="https://drive.google.com/uc?id=1pZL3SoEZvNtDAlGZmDH3yFFpeV9YC9CV" alt="From Paper 'Synchronization Using Remote-Scope Promotion'" width="300">
+  <figcaption>From Paper "Synchronization Using Remote-Scope Promotion"</figcaption>
+</figure>
+</p>
 
-In a Heterogeneous system architecture, threads are partitioned into subgroups that make up workgroups (wg in the picture) and threads within these are scheduled together and can communicate with each other much faster than with work-items in other workgroups. 
+In a heterogeneous system architecture, threads are partitioned into subgroups that make up workgroups (wg in the picture) and threads within these are scheduled together and can communicate with each other much faster than with threads in other workgroups. 
 These workgroups are partitioned into smaller sets called warps or wavefronts (wv in the picture), to match the GPU execution width. These warps execute on these SIMD units and a workgroup executes on a compute unit which is composed of multiple of these as seen in the picture. Each CU has an L1 and they share a common L2 cache
 
 
@@ -42,6 +51,16 @@ __kernel void rmw_test( __global atomic_uint* array, global uint* iters) {
 }
 ```
 This device code will be executed in SPMD, which means that each thread executes the same program, but has access to unique identifiers (thread ID or defined in OpenCL as get_global_id(0)) that can be used to guide threads to different program locations. Knowing this, we can guide threads to perform an atomic add on certain memory locations. We can run different experiments regarding this index calculation, where the contention and/or padding can influence where each thread will perform an atomic add. 
+
+With this setup, we will be examining the following GPUs (from Concurrency and Heterogeneous Programming Lab):
+
+AMD Radeon RX 7900 XT 
+AMD Ryzen 7 5700G / Radeon Graphics
+NVIDIA Quadro RTX 4000 
+NVIDIA RTX 4070 
+Intel(R) UHD Graphics (CFL GT2) 
+Intel(R) UHD Graphics 770 (ADL-S GT1) 
+Intel(R) Arc(tm) A770 Graphics (DG2) 
 
 ### Contiguous Access
 Taking in contention and padding into account, we can perform a contiguous access, which is defined as an operation (atomic add) performed on contiguous (same part of memory) indices. This allows for threads from the same warp to access the same atomic location.
@@ -82,10 +101,10 @@ This is an experiment where we simply add a condition on top of an atomic add wh
 __kernel void rmw_test( __global atomic_uint* array, global uint* iters, global uint* stride, global uint* branch) {
   uint index = stride[get_global_id(0)]; // tid * padding % size                          
   for (uint i = 0; i < *iters; i++) {
-        		if (branch[get_global_id(0)]) { // tid % 2: 0,1,0,1,...
-            		atomic_fetch_add_explicit(&array[index], 1, memory_order_relaxed);
-        		}
-    	}
+    if (branch[get_global_id(0)]) { // tid % 2: 0,1,0,1,...
+      atomic_fetch_add_explicit(&array[index], 1, memory_order_relaxed);
+    }
+  }
 }
 ```
 We create a bit-vector on the host side where each element is calculated by modulating the thread ID by 2, which results in half the global work size performing atomic operations.
