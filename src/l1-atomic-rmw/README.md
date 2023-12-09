@@ -1,9 +1,7 @@
 # Atomic-RMW: GPU Microbenchmark 
 
 ## Introduction
-A microbenchmark made to observe the behavior and measure performance of low level synchronization primitives, atomic RMWs on GPUs. An atomic RMW is an operation that does both read a memory location and write a new value into it simultaneously, all happens in one atomic indivisible step. The development of this microbenchmark will help us look for interesting hardware features, specifically on the coalescing of atomics. The act of coalescing is the idea of combining individual pushes into a single push of multiple items utilizing a single rmw. 
-
-Furthermore, from obtaining data with this microbenchmark, we want to derive a descriptive model for a wide variety of GPUs across multiple vendors, to understand the undisclosed characteristics of GPU microarchitecture and the manufacturer's design decisions.
+A microbenchmark made to observe the behavior and measure performance of low level synchronization primitives, atomic RMWs on GPUs. An atomic RMW is an operation that does both read a memory location and write a new value into it simultaneously, all happens in one atomic indivisible step. The development of this microbenchmark will help us look for interesting hardware features, specifically on the coalescing of atomics. The act of coalescing is the idea of combining individual pushes into a single push of multiple items utilizing a single rmw. Furthermore, from obtaining data with this microbenchmark, we want to derive a descriptive model for a wide variety of GPUs across multiple vendors, to understand the undisclosed characteristics of GPU microarchitecture and the manufacturer's design decisions.
 
 ## Motivation
 The most general forms of fine-grained synchronization are one of the most expensive operations on a GPU, like using fine-grained mutexes to provide mutual exclusion to global memory updates. Also applying GPUs to irregular computations like graph algorithms have become more common nowadays. These computations require the use of a global worklist for dynamic workload balancing, and that each modification to it will require an RMW. The main goal of this microbenchmark is to provide insights on reducing the cost of these expensive operations through reordering or rewriting atomics in a way that provide performance optimizations. 
@@ -51,16 +49,6 @@ __kernel void rmw_test( __global atomic_uint* array, global uint* iters) {
 }
 ```
 This device code will be executed in SPMD, which means that each thread executes the same program, but has access to unique identifiers (thread ID or defined in OpenCL as get_global_id(0)) that can be used to guide threads to different program locations. Knowing this, we can guide threads to perform an atomic add on certain memory locations. We can run different experiments regarding this index calculation, where the contention and/or padding can influence where each thread will perform an atomic add. 
-
-With this setup, we will be examining the following GPUs (from Concurrency and Heterogeneous Programming Lab):
-
-AMD Radeon RX 7900 XT 
-AMD Ryzen 7 5700G / Radeon Graphics
-NVIDIA Quadro RTX 4000 
-NVIDIA RTX 4070 
-Intel(R) UHD Graphics (CFL GT2) 
-Intel(R) UHD Graphics 770 (ADL-S GT1) 
-Intel(R) Arc(tm) A770 Graphics (DG2) 
 
 ### Contiguous Access
 Taking in contention and padding into account, we can perform a contiguous access, which is defined as an operation (atomic add) performed on contiguous (same part of memory) indices. This allows for threads from the same warp to access the same atomic location.
@@ -123,7 +111,25 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters, global ui
   }
 }
 ```
-The multiplicative and additive congruent generators are constant throughout the whole experiment. Any potential optimizations by the compiler are hinded as the seed isn't explicit.
+The multiplicative and additive congruent generators are constant throughout the whole experiment. Any potential optimizations by the compiler are limited as the seed isn't explicit.
+
+## Results
+
+With the setup, we will be examining the following GPUs (from Concurrency and Heterogeneous Programming Lab):
+
+AMD Radeon RX 7900 XT 
+AMD Ryzen 7 5700G / Radeon Graphics
+NVIDIA Quadro RTX 4000 
+NVIDIA RTX 4070 
+Intel(R) UHD Graphics (CFL GT2) 
+Intel(R) UHD Graphics 770 (ADL-S GT1) 
+Intel(R) Arc(tm) A770 Graphics (DG2) 
+
+[Import results here]
 
 ## Future work
 
+- Use data to create a descriptive model (insights into performance optimizations)
+- Examine implementations from similar work: scope promotion for work stealing, reducing use of global locks via client-server system represented as thread blocks
+- OpenMP: Implementing atomic coalescing as a compiler pass on observed atomic operations
+- Classify trends/patterns into groups and hypothesize on those features
