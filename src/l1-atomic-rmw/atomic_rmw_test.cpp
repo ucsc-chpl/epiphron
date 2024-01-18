@@ -159,7 +159,6 @@ extern "C" uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgrou
 
 extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name) {
 
-    if (thread_dist == "random_access" && test_name == "atomic_fa_relaxed_out") return;
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
     sprintf(currentTest, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
