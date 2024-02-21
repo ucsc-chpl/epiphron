@@ -30,3 +30,4 @@ clean:
 	rm -rf *.spv
 	rm -rf build
 	rm *.run
+	rm *.txt

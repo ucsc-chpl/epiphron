@@ -169,13 +169,15 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
     uint32_t tmp;
     if (workgroups * workgroup_size > 1024) tmp = 1024;
     else tmp = workgroup_size * workgroups;
-    for (uint32_t i = 1; i <= tmp; i *= 2) { //1024 for global, 64 local
+    if (test_name == "local_atomic_fa_relaxed") tmp = 256;
+    for (uint32_t i = 1; i <= tmp; i *= 2) {
         test_values.push_back(i);  
     } 
     int errors = 0;
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         int random_access_status = 0;
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
+            if (test_name == "local_atomic_fa_relaxed" && *it2 > 8) continue; 
             if (!random_access_status && thread_dist == "random_access") random_access_status = 1;
             else if (random_access_status && thread_dist == "random_access") continue;
 
@@ -183,21 +185,22 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             uint32_t padding = *it2;
             float observed_rate = 0.0;
             benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
-            const int size = ((workgroup_size * workgroups) * padding) / contention;
+            uint global_work_size = workgroup_size * workgroups;
+            const int size = ((global_work_size) * padding) / contention;
             uint32_t rmw_iters = 16;
 
             // thread_dist == "random_access" ? contention : size -> contention breaks on AMD Discrete
             Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
             Buffer sizeBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer stratBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
-            Buffer branchBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+            Buffer stratBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer branchBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
 
-            Buffer outBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+            Buffer outBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, contention-1);
-            for (int i = 0; i < workgroup_size * workgroups; i += 1) {
+            for (int i = 0; i < global_work_size; i += 1) {
                 if (thread_dist == "branched") {    
                     branchBuf.store<uint32_t>(i, i % 2);
                     stratBuf.store<uint32_t>(i, (i * padding) % size);
@@ -246,17 +249,21 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
         "branched",
         "cross_warp",
         "contiguous_access",
-        //"random_access"
+        //"random_access" (under construction)
     };
     vector<string> atomic_rmws = {
         "atomic_fa_relaxed",
-        //"atomic_fa_relaxed_out",
+        "atomic_fa_relaxed_out",
+        "local_atomic_fa_relaxed",
+        "atomic_cas_succeed_store",
+        "atomic_cas_succeed_no_store",
     };
 
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
             vector<uint32_t> spv_code = getSPVCode(strategy + "/" + rmw + ".cinit");
-            run(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
+            if (rmw == "local_atomic_fa_relaxed") run(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
+            else run(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
         }
     }
     return;
@@ -289,7 +296,7 @@ int main() {
     return 0;
     #else
     system("python3 heatmap.py");
-    system("python3 random_access.py");
+    //system("python3 random_access.py");
     return 0;
     #endif
 
