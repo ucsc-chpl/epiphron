@@ -203,7 +203,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             for (int i = 0; i < global_work_size; i += 1) {
                 if (thread_dist == "branched") {    
                     branchBuf.store<uint32_t>(i, i % 2);
-                    stratBuf.store<uint32_t>(i, (i * padding) % size);
+                    stratBuf.store<uint32_t>(i, (i / contention) * padding);
                 } else if (thread_dist == "cross_warp") {
                     stratBuf.store<uint32_t>(i, (i * padding) % size);
                 } else if (thread_dist == "contiguous_access") {

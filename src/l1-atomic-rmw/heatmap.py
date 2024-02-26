@@ -90,6 +90,7 @@ def generate_heatmap(coordinates, title):
     plt.text(-0.12, 1.08, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
     if 'cross_warp' in description[1]:
         plt.title("striding_access: local_atomic_fa_relaxed")
+    plt.title(description[1])
  else:
     cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[])
     cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
