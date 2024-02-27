@@ -173,7 +173,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
     for (uint32_t i = 1; i <= tmp; i *= 2) {
         test_values.push_back(i);  
     } 
-    int errors = 0;
+    
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         int random_access_status = 0;
         for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
@@ -191,10 +191,12 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
 
             // thread_dist == "random_access" ? contention : size -> contention breaks on AMD Discrete
             Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
-            Buffer sizeBuf = Buffer(device, 1, sizeof(uint32_t));
+            Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
+            Buffer paddingBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
             Buffer stratBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
             Buffer branchBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer localBuf = Buffer(device, 1, sizeof(uint32_t));
 
             Buffer outBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
             random_device rd;
@@ -212,32 +214,35 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
                     stratBuf.store<uint32_t>(i, distribution(gen));
                 }
             }
-            sizeBuf.store(0, contention);
+            contentionBuf.store(0, contention);
+            paddingBuf.store(0, padding);
+            localBuf.store(0, (workgroup_size*padding)/contention);
             while(true) {
                 rmwItersBuf.store(0, rmw_iters);
                 resultBuf.clear();
                 vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
                 if (thread_dist == "branched") buffers.emplace_back(branchBuf);
-                else if (thread_dist == "random_access") buffers.emplace_back(sizeBuf);
+                else if (thread_dist == "random_access") buffers.emplace_back(contentionBuf);
                 if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(outBuf);
+                else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
+                    buffers.emplace_back(paddingBuf);
+                    buffers.emplace_back(localBuf);
+                }
                 observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
                 if (isinf(observed_rate)) rmw_iters *= 2;
                 else break;
             }
-            // Buffer Validation (Expect errors for branched and random access)
-            for (int access = 0; access < size; access += padding) {
-                if (resultBuf.load<uint32_t>(access) != rmw_iters * test_iters * contention) errors += 1;
-            }
             resultBuf.teardown();
-            sizeBuf.teardown();
+            contentionBuf.teardown();
             rmwItersBuf.teardown();
             branchBuf.teardown();
+            paddingBuf.teardown();
+            localBuf.teardown();
             stratBuf.teardown();
             outBuf.teardown();
             benchmarkData << to_string(observed_rate) + ")" << endl;
         }
     }
-    log("Error count: %d\n", errors);
     return;
 }
 
