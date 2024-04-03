@@ -41,7 +41,6 @@ def generate_heatmap(coordinates, title):
     data_min = math.floor(np.min(data_array))
     data_max = math.floor(np.max(data_array))
 
-
     # Set up the figure and axes
     fig_x = 10
     fig_y = 8
@@ -54,35 +53,37 @@ def generate_heatmap(coordinates, title):
     heatmap = ax.imshow(data_array, cmap='viridis', vmin=data_min, vmax=data_max)
 
     # Set appropriate axis labels
-    plt.xlabel("Contention")
-    plt.ylabel("Padding")
+    plt.xlabel("Contention", fontsize=16, labelpad=16)
+    plt.ylabel("Padding", fontsize=16, labelpad=0)
 
     #  # Set the tick locations and labels for the x-axis
     x_ticks = [2 ** i for i in range(contention)]
     ax.set_xticks(np.arange(len(x_ticks)))
-    ax.set_xticklabels(x_ticks, fontsize=7)
+    ax.set_xticklabels(x_ticks, fontsize=13)
 
     #  # Set the tick locations and labels for the y-axis
     y_ticks = [2 ** i for i in range(padding)]
     ax.set_yticks(np.arange(len(y_ticks)))
-    ax.set_yticklabels(y_ticks, fontsize=7)
+    ax.set_yticklabels(y_ticks, fontsize=13)
 
     # Add text annotations for data points
     # flag check here 
     #baseline = data_array[0][0]
     for i in range(data_array.shape[0]):
         for j in range(data_array.shape[1]):
-            text = ax.text(j, i, int(data_array[i][j]),
-                ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
+            pass
+            # temporarily disabling heatmap labels
+            #text = ax.text(j, i, int(data_array[i][j]),
+            #    ha="center", va="center", color="w", fontsize=9, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
     # Customize the color bar range
     # local mem color bar adjustments
+    fraction = 0.046
     if 'local' in title_information[1]:
-       cbar = plt.colorbar(heatmap, fraction=0.026, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
-       cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
-    else:
-       cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
-       cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+       fraction = 0.026
+    cbar = plt.colorbar(heatmap, fraction=fraction, pad=0.03, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=16)
+    cbar.ax.tick_params(labelsize=13)
 
     ax.invert_yaxis()  # Invert the y-axis
 
@@ -106,16 +107,17 @@ def generate_heatmap(coordinates, title):
     elif 'cas' in description[1]:
        tmp += ": atomic_compare_exchange_strong"
 
-    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
+    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1], fontsize=20)
 
 
     save_folder = "heatmaps"
     os.makedirs(save_folder, exist_ok=True)
 
     # Save the plot in the specified folder
-    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg")
+    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg".replace(":", "-").replace(" ", "_"))
 
-    plt.savefig(filename, format='svg')
+    print(filename)
+    plt.savefig(filename, format='svg', bbox_inches='tight')
 
     plt.close()
 
