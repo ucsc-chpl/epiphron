@@ -253,11 +253,13 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
     vector<string> thread_dist = {
         //"branched",
         //"cross_warp",
-        "contiguous_access",
-        //"random_access" (under construction)
+        //"contiguous_access",
+
+        // Only setup with atomic_fetch_add at the moment
+        "random_access"
     };
     vector<string> atomic_rmws = {
-        //"atomic_fa_relaxed",
+        "atomic_fa_relaxed",
         //"atomic_fa_relaxed_out",
         //"local_atomic_fa_relaxed",
         //"atomic_cas_succeed_store",
@@ -306,7 +308,7 @@ int main() {
     return 0;
     #else
     system("python3 heatmap.py");
-    //system("python3 random_access.py");
+    system("python3 random_access.py");
     return 0;
     #endif
 

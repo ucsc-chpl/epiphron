@@ -19,8 +19,9 @@ def generate_graph(coordinates, title, color):
     #print(description)
     plt.plot(contention_values, throughput_values, marker='o', linestyle='-', label=description[0], color=color, markersize=6)
     #plt.text(-0.15, 1.12, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
-    plt.text(0.9, 1.12, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
-    plt.text(0.9, 1.07, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
+    #plt.text(0.9, 1.12, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
+    #plt.text(0.9, 1.07, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
+    plt.title(description[0] + "\nRandom Access: atomic_fetch_add\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
 
 
 def extract_coordinates_from_file(filename):
@@ -58,15 +59,14 @@ for i, title in enumerate(sorted(titles)):
         plt.xticks(x_ticks, x_labels)
 
         plt.legend(title='Legend', loc='upper right')
-        plt.title('fetch_add')
         plt.xlabel('# of Atomics')
-        plt.ylabel('Throughput')
+        plt.ylabel('Atomic operations per microsecond')
         plt.grid(True)
         plt.legend()
 
         save_folder = "heatmaps"
         os.makedirs(save_folder, exist_ok=True)
 
-        filename = os.path.join(save_folder, f"{GPU_info}.png")
-        plt.savefig(filename)
+        filename = os.path.join(save_folder, f"{GPU_info}.png".replace(":", "-").replace(" ", "_"))
+        plt.savefig(filename, format='png', bbox_inches='tight')
         plt.close()
