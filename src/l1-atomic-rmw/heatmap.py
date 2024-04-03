@@ -105,7 +105,9 @@ def generate_heatmap(coordinates, title):
     if 'atomic_fa' in description[1]:
        tmp += ": atomic_fetch_add"
     elif 'cas' in description[1]:
-       tmp += ": atomic_compare_exchange_strong"
+       tmp += ": atomic_compare_exchange"
+    else:
+        tmp += description[1][description[1].find(':'):]
 
     plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1], fontsize=20)
 

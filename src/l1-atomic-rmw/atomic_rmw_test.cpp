@@ -251,17 +251,22 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, getSPVCode("occupancy_discovery.cinit"), 16);
     vector<string> thread_dist = {
-        "branched",
-        "cross_warp",
+        //"branched",
+        //"cross_warp",
         "contiguous_access",
         //"random_access" (under construction)
     };
     vector<string> atomic_rmws = {
-        "atomic_fa_relaxed",
-        "atomic_fa_relaxed_out",
-        "local_atomic_fa_relaxed",
-        "atomic_cas_succeed_store",
-        "atomic_cas_succeed_no_store",
+        //"atomic_fa_relaxed",
+        //"atomic_fa_relaxed_out",
+        //"local_atomic_fa_relaxed",
+        //"atomic_cas_succeed_store",
+        //"atomic_cas_succeed_no_store",
+
+        // Only setup with contiguous access at the moment
+        //"atomic_fetch_min",
+        //"atomic_fetch_max",
+        //"atomic_exchange",
     };
 
     for (const string& strategy : thread_dist) {
