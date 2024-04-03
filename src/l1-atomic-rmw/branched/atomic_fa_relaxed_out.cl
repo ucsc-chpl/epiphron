@@ -1,6 +1,6 @@
 // Atomic Fetch Add Relaxed
 __kernel void rmw_test( __global atomic_uint* res, global uint* iters, 
-                        global uint* indexes, global uint* output, global uint* branch) {
+                        global uint* indexes, global uint* branch, global uint* output) {
     
     uint index = indexes[get_global_id(0)];      
     uint tmp = 0;
