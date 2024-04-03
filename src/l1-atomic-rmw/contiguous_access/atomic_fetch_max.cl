@@ -4,6 +4,6 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters,
 
     uint index = indexes[get_global_id(0)]; // chunking
     for (uint i = 0; i < *iters; i++) {
-        atomic_fetch_max_explicit(&res[index], 0, memory_order_relaxed);
+        atomic_fetch_max_explicit(&res[index], i + get_global_id(0), memory_order_relaxed);
     }
 }
