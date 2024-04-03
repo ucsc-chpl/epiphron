@@ -88,7 +88,7 @@ def generate_heatmap(coordinates, title):
  tmp = ""
  if 'cross_warp' in description[1]:
    tmp = "Cross Warp"
- if 'local' in title_information[1]:
+   if 'local' in title_information[1]:
       tmp = "Strided Access"
  elif "contiguous_access" in description[1]:
    tmp = "Contiguous Access"
