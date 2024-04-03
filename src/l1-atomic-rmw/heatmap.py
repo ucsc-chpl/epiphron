@@ -11,101 +11,100 @@ import os
 import math
 
 def generate_heatmap(coordinates, title):
+    # workgroup and title extraction
+    title_information = title.split(":", 1)
+    workgroup_information = title_information[0].split(",")
+    workgroup_size = int(workgroup_information[0])
+    workgroups = int(workgroup_information[1])
+    final_size = 0
+    if 'local' in title_information[1]:
+        final_size = 256
+    elif workgroup_size * workgroups > 1024:
+        final_size = 1024
+    else:
+        final_size = workgroup_size * workgroups
+    grid_scale = int(math.log2(final_size)) + 1
+    
+    contention = grid_scale
+    padding = grid_scale
+    if 'local' in title_information[1]:
+        padding = 4 # scaling to 8
+    data_array = np.zeros((padding, contention))
 
- # workgroup and title extraction
- title_information = title.split(":", 1)
- workgroup_information = title_information[0].split(",")
- workgroup_size = int(workgroup_information[0])
- workgroups = int(workgroup_information[1])
- final_size = 0
- if 'local' in title_information[1]:
-    final_size = 256
- elif workgroup_size * workgroups > 1024:
-    final_size = 1024
- else:
-    final_size = workgroup_size * workgroups
- grid_scale = int(math.log2(final_size)) + 1
- 
- contention = grid_scale
- padding = grid_scale
- if 'local' in title_information[1]:
-    padding = 4 # scaling to 8
- data_array = np.zeros((padding, contention))
+    # Assign values to the data array based on coordinates
+    for x, y, value, _ in coordinates:
+        x_index = int(np.log2(x))
+        y_index = int(np.log2(y))
+        data_array[y_index, x_index] = value
 
- # Assign values to the data array based on coordinates
- for x, y, value, _ in coordinates:
-    x_index = int(np.log2(x))
-    y_index = int(np.log2(y))
-    data_array[y_index, x_index] = value
-
- # Get the minimum and maximum values from the data_array
- data_min = math.floor(np.min(data_array))
- data_max = math.floor(np.max(data_array))
-
-
- # Set up the figure and axes
- fig_x = 10
- fig_y = 8
- if 'local' in title_information[1]:
-    fig_x = 8
-    fig_y = 6
- fig, ax = plt.subplots(figsize=(fig_x, fig_y), dpi=300)
-
- # Create the heatmap
- heatmap = ax.imshow(data_array, cmap='viridis', vmin=data_min, vmax=data_max)
-
- # Set appropriate axis labels
- plt.xlabel("Contention")
- plt.ylabel("Padding")
-
-#  # Set the tick locations and labels for the x-axis
- x_ticks = [2 ** i for i in range(contention)]
- ax.set_xticks(np.arange(len(x_ticks)))
- ax.set_xticklabels(x_ticks, fontsize=7)
-
-#  # Set the tick locations and labels for the y-axis
- y_ticks = [2 ** i for i in range(padding)]
- ax.set_yticks(np.arange(len(y_ticks)))
- ax.set_yticklabels(y_ticks, fontsize=7)
-
- # Add text annotations for data points
- # flag check here 
- #baseline = data_array[0][0]
- for i in range(data_array.shape[0]):
-    for j in range(data_array.shape[1]):
-        text = ax.text(j, i, int(data_array[i][j]),
-                    ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
-
- # Customize the color bar range
- # flag check here 
- cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
- cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
-
- ax.invert_yaxis()  # Invert the y-axis
-
- description = title_information[1].split(", ")
- 
- tmp = ""
- if 'cross_warp' in description[1]:
-   tmp = "Cross Warp"
- if 'local' in title_information[1]:
-      tmp = "Strided Access"
- elif "contiguous_access" in description[1]:
-   tmp = "Contiguous Access"
- elif "branched" in description[1]:
-   tmp = "Branched"
- plt.title(description[0] + "\n" + tmp + description[1][description[1].find(':'):] + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
+    # Get the minimum and maximum values from the data_array
+    data_min = math.floor(np.min(data_array))
+    data_max = math.floor(np.max(data_array))
 
 
- save_folder = "heatmaps"
- os.makedirs(save_folder, exist_ok=True)
+    # Set up the figure and axes
+    fig_x = 10
+    fig_y = 8
+    if 'local' in title_information[1]:
+        fig_x = 8
+        fig_y = 6
+    fig, ax = plt.subplots(figsize=(fig_x, fig_y), dpi=300)
 
- # Save the plot in the specified folder
- filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg")
+    # Create the heatmap
+    heatmap = ax.imshow(data_array, cmap='viridis', vmin=data_min, vmax=data_max)
 
- plt.savefig(filename, format='svg')
+    # Set appropriate axis labels
+    plt.xlabel("Contention")
+    plt.ylabel("Padding")
 
- plt.close()
+    #  # Set the tick locations and labels for the x-axis
+    x_ticks = [2 ** i for i in range(contention)]
+    ax.set_xticks(np.arange(len(x_ticks)))
+    ax.set_xticklabels(x_ticks, fontsize=7)
+
+    #  # Set the tick locations and labels for the y-axis
+    y_ticks = [2 ** i for i in range(padding)]
+    ax.set_yticks(np.arange(len(y_ticks)))
+    ax.set_yticklabels(y_ticks, fontsize=7)
+
+    # Add text annotations for data points
+    # flag check here 
+    #baseline = data_array[0][0]
+    for i in range(data_array.shape[0]):
+        for j in range(data_array.shape[1]):
+            text = ax.text(j, i, int(data_array[i][j]),
+                ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
+
+    # Customize the color bar range
+    # flag check here 
+    cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+
+    ax.invert_yaxis()  # Invert the y-axis
+
+    description = title_information[1].split(", ")
+    
+    tmp = ""
+    if 'cross_warp' in description[1]:
+        tmp = "Cross Warp"
+    if 'local' in title_information[1]:
+            tmp = "Strided Access"
+    elif "contiguous_access" in description[1]:
+        tmp = "Contiguous Access"
+    elif "branched" in description[1]:
+        tmp = "Branched"
+    plt.title(description[0] + "\n" + tmp + description[1][description[1].find(':'):] + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
+
+
+    save_folder = "heatmaps"
+    os.makedirs(save_folder, exist_ok=True)
+
+    # Save the plot in the specified folder
+    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg")
+
+    plt.savefig(filename, format='svg')
+
+    plt.close()
 
 def extract_coordinates_from_file(filename):
     coordinates = []
