@@ -78,38 +78,32 @@ def generate_heatmap(coordinates, title):
 
  # Customize the color bar range
  # flag check here 
+ cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+ cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+
+ ax.invert_yaxis()  # Invert the y-axis
+
+ description = title_information[1].split(", ")
+ 
+ tmp = ""
+ if 'cross_warp' in description[1]:
+   tmp = "Cross Warp"
  if 'local' in title_information[1]:
-    cbar = plt.colorbar(heatmap, fraction=0.026, pad=0.04, ticks=[])
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+      tmp = "Strided Access"
+ elif "contiguous_access" in description[1]:
+   tmp = "Contiguous Access"
+ elif "branched" in description[1]:
+   tmp = "Branched"
+ plt.title(description[0] + "\n" + tmp + description[1][description[1].find(':'):] + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
 
-    ax.invert_yaxis()  # Invert the y-axis
-    
-    description = title_information[1].split(", ")
-    plt.text(-0.12, 1.2, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
-    plt.text(-0.12, 1.13, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
-    plt.text(-0.12, 1.08, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
-    if 'cross_warp' in description[1]:
-        plt.title("striding_access: local_atomic_fa_relaxed")
-    plt.title(description[1])
- else:
-    cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[])
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
-
-    ax.invert_yaxis()  # Invert the y-axis
-    
-    description = title_information[1].split(", ")
-    plt.text(-0.32, 1.1, description[0], transform=plt.gca().transAxes, fontsize=12, va='center')
-    plt.text(-0.32, 1.03, "workgroup_size: "+ workgroup_information[0], transform=plt.gca().transAxes, fontsize=7)
-    plt.text(-0.32, 0.98, "workgroups: "+ workgroup_information[1], transform=plt.gca().transAxes, fontsize=7)
-    plt.title(description[1])
 
  save_folder = "heatmaps"
  os.makedirs(save_folder, exist_ok=True)
 
  # Save the plot in the specified folder
- filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.png")
+ filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg")
 
- plt.savefig(filename)
+ plt.savefig(filename, format='svg')
 
  plt.close()
 
