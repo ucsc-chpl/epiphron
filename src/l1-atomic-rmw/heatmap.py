@@ -83,12 +83,12 @@ def generate_heatmap(coordinates, title):
     ax.invert_yaxis()  # Invert the y-axis
 
     description = title_information[1].split(", ")
-    
+ 
     tmp = ""
     if 'cross_warp' in description[1]:
         tmp = "Cross Warp"
     if 'local' in title_information[1]:
-            tmp = "Strided Access"
+        tmp = "Strided Access"
     elif "contiguous_access" in description[1]:
         tmp = "Contiguous Access"
     elif "branched" in description[1]:
