@@ -76,24 +76,37 @@ def generate_heatmap(coordinates, title):
                 ha="center", va="center", color="w", fontsize=6, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
     # Customize the color bar range
-    # flag check here 
-    cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+    # local mem color bar adjustments
+    if 'local' in title_information[1]:
+       cbar = plt.colorbar(heatmap, fraction=0.026, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+       cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
+    else:
+       cbar = plt.colorbar(heatmap, fraction=0.046, pad=0.04, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+       cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=15)
 
     ax.invert_yaxis()  # Invert the y-axis
 
     description = title_information[1].split(", ")
- 
+   
+    # Thread access pattern
     tmp = ""
     if 'cross_warp' in description[1]:
-        tmp = "Cross Warp"
-    if 'local' in title_information[1]:
-        tmp = "Strided Access"
+       tmp = "Cross Warp"
     elif "contiguous_access" in description[1]:
-        tmp = "Contiguous Access"
+       tmp = "Contiguous Access"
     elif "branched" in description[1]:
-        tmp = "Branched"
-    plt.title(description[0] + "\n" + tmp + description[1][description[1].find(':'):] + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
+       tmp = "Branched"
+
+    if 'local' in title_information[1]:
+       tmp += " (Local Memory)"
+   
+    # Operation type
+    if 'atomic_fa' in description[1]:
+       tmp += ": atomic_fetch_add"
+    elif 'cas' in description[1]:
+       tmp += ": atomic_compare_exchange_strong"
+
+    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1])
 
 
     save_folder = "heatmaps"
