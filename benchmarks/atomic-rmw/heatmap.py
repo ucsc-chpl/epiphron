@@ -1,6 +1,5 @@
 # HEATMAP CODE
 import re, os, math
-import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -55,12 +54,12 @@ def generate_heatmap(coordinates, title):
     #  # Set the tick locations and labels for the x-axis
     x_ticks = [2 ** i for i in range(contention)]
     ax.set_xticks(np.arange(len(x_ticks)))
-    ax.set_xticklabels(x_ticks, fontsize=13)
+    ax.set_xticklabels(x_ticks, fontsize=18)
 
     #  # Set the tick locations and labels for the y-axis
     y_ticks = [2 ** i for i in range(padding)]
     ax.set_yticks(np.arange(len(y_ticks)))
-    ax.set_yticklabels(y_ticks, fontsize=13)
+    ax.set_yticklabels(y_ticks, fontsize=18)
 
     # Add text annotations for data points
     # flag check here 
@@ -96,8 +95,11 @@ def generate_heatmap(coordinates, title):
        tmp += ": atomic_compare_exchange"
     else:
         tmp += description[1][description[1].find(':'):]
+    
+    # Removing underscores from operation because TeX font included in Matplotlib doesn't have that character
+    tmp = tmp.replace("_", " ")
 
-    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1], fontsize=20)
+    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) x " + workgroup_information[1], fontsize=20)
 
     # Add colorbar
     data_step = math.floor((data_max - data_min) / 7)
@@ -105,7 +107,7 @@ def generate_heatmap(coordinates, title):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.2)
     cbar = plt.colorbar(heatmap, cax=cax, ticks=cbar_ticks)
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=16)
+    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=18)
     cbar.ax.tick_params(labelsize=13)
 
     save_folder = "heatmaps"
@@ -135,6 +137,10 @@ def extract_coordinates_from_file(filename):
                 current_title = line.strip()
     return coordinates
 
+plt.rcParams["font.serif"] = "cmr10, Computer Modern Serif, DejaVu Serif"
+plt.rcParams["font.family"] = "serif"
+plt.rcParams["axes.formatter.use_mathtext"] = True
+plt.rcParams["mathtext.fontset"] = "cm"
 # File name
 for filename in filter(lambda r: r.endswith(".txt"), os.listdir("results/")):
     print(f"Processing '{filename}'...")
