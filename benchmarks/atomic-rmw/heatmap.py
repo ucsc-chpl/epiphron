@@ -1,14 +1,9 @@
 # HEATMAP CODE
-from ast import parse
-from cmath import nan
+import re, os, math
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 import numpy as np
-import matplotlib.ticker as ticker
-import re
-import os
-import math
 
 def generate_heatmap(coordinates, title):
     # workgroup and title extraction
@@ -118,7 +113,7 @@ def generate_heatmap(coordinates, title):
     # Save the plot in the specified folder
     filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg".replace(":", "-").replace(" ", "_"))
 
-    print(filename)
+    print(f"Saving '{filename}'...")
     plt.savefig(filename, format='svg', bbox_inches='tight')
 
     plt.close()
@@ -127,7 +122,7 @@ def extract_coordinates_from_file(filename):
     coordinates = []
     current_title = ""
 
-    with open(filename, 'r') as file:
+    with open("results/" + filename, 'r') as file:
         for line in file:
             if re.match(r"\(\d+, \d+, \d+.\d+\)", line) or "inf" in line:
                 parts = line.strip("()\n").split(", ")
@@ -137,15 +132,15 @@ def extract_coordinates_from_file(filename):
                 coordinates.append((x, y, value, current_title))
             else:
                 current_title = line.strip()
-
     return coordinates
 
 # File name
-filename = "result.txt"
-# Extract coordinates from the file
-coordinates = extract_coordinates_from_file(filename)
-titles = set(coord[3] for coord in coordinates)
-for title in sorted(titles):
-    if "random_access" not in title:
-        graph_coordinates = [c for c in coordinates if c[3] == title]
-        generate_heatmap(graph_coordinates, title)
+for filename in filter(lambda r: r.endswith(".txt"), os.listdir("results/")):
+    print(f"Processing '{filename}'...")
+    # Extract coordinates from the file
+    coordinates = extract_coordinates_from_file(filename)
+    titles = set(coord[3] for coord in coordinates)
+    for title in sorted(titles):
+        if "random_access" not in title:
+            graph_coordinates = [c for c in coordinates if c[3] == title]
+            generate_heatmap(graph_coordinates, title)
