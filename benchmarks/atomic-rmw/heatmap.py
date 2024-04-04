@@ -3,6 +3,7 @@ import re, os, math
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
 def generate_heatmap(coordinates, title):
@@ -71,16 +72,6 @@ def generate_heatmap(coordinates, title):
             #text = ax.text(j, i, int(data_array[i][j]),
             #    ha="center", va="center", color="w", fontsize=9, path_effects=[pe.withStroke(linewidth=1, foreground="black")], weight='bold')
 
-    # Customize the color bar range
-    # local mem color bar adjustments
-    fraction = 0.046
-    if 'local' in title_information[1]:
-       fraction = 0.026
-    data_step = math.floor((data_max - data_min) / 10)
-    cbar_ticks = [math.floor(n) for n in range(data_min, data_max, data_step)]
-    cbar = plt.colorbar(heatmap, fraction=fraction, pad=0.03, ticks=cbar_ticks)
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=16)
-    cbar.ax.tick_params(labelsize=13)
 
     ax.invert_yaxis()  # Invert the y-axis
 
@@ -107,6 +98,15 @@ def generate_heatmap(coordinates, title):
         tmp += description[1][description[1].find(':'):]
 
     plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1], fontsize=20)
+
+    # Add colorbar
+    data_step = math.floor((data_max - data_min) / 7)
+    cbar_ticks = [math.floor(n) for n in range(data_min, data_max, data_step)]
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.2)
+    cbar = plt.colorbar(heatmap, cax=cax, ticks=cbar_ticks)
+    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=16)
+    cbar.ax.tick_params(labelsize=13)
 
     save_folder = "heatmaps"
     os.makedirs(save_folder, exist_ok=True)
