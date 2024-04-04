@@ -76,7 +76,9 @@ def generate_heatmap(coordinates, title):
     fraction = 0.046
     if 'local' in title_information[1]:
        fraction = 0.026
-    cbar = plt.colorbar(heatmap, fraction=fraction, pad=0.03, ticks=[(data_max/8)*1.5,(data_max/8)*2.5,(data_max/8)*3.5,(data_max/8)*4.5,(data_max/8)*5.5,(data_max/8)*6.5,(data_max/8)*7.5])
+    data_step = math.floor((data_max - data_min) / 10)
+    cbar_ticks = [math.floor(n) for n in range(data_min, data_max, data_step)]
+    cbar = plt.colorbar(heatmap, fraction=fraction, pad=0.03, ticks=cbar_ticks)
     cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=16)
     cbar.ax.tick_params(labelsize=13)
 
@@ -105,7 +107,6 @@ def generate_heatmap(coordinates, title):
         tmp += description[1][description[1].find(':'):]
 
     plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) × " + workgroup_information[1], fontsize=20)
-
 
     save_folder = "heatmaps"
     os.makedirs(save_folder, exist_ok=True)
