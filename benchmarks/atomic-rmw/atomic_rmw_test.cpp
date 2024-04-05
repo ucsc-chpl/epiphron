@@ -13,7 +13,7 @@
 #include <random>
 
 #include "easyvk.h"
-#include "../_example/json.h"
+#include "json.hpp"
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -158,10 +158,9 @@ extern "C" uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgrou
 
 
 extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name) {
-
     benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
     char currentTest[100];
-    sprintf(currentTest, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
+    snprintf(currentTest, 100, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
     benchmarkData << currentTest;
 
     // Contention/Padding Values
@@ -250,13 +249,14 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
     uint32_t test_iters = 64;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, getSPVCode("occupancy_discovery.cinit"), 16);
+    // We desperately need a better way to handle this - command flags?? interactive menu?? please don't make me recompile to change test type
     vector<string> thread_dist = {
         //"branched",
         //"cross_warp",
-        //"contiguous_access",
+        "contiguous_access",
 
         // Only setup with atomic_fetch_add at the moment
-        "random_access"
+        //"random_access"
     };
     vector<string> atomic_rmws = {
         "atomic_fa_relaxed",
@@ -304,12 +304,5 @@ int main() {
     benchmarkData.close();
 
     instance.teardown();
-    #ifdef __ANDROID__
     return 0;
-    #else
-    system("python3 heatmap.py");
-    system("python3 random_access.py");
-    return 0;
-    #endif
-
 }

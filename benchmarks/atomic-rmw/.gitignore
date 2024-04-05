@@ -1,3 +1,6 @@
 heatmaps/
 results/
+
 result.txt
+**/*.cinit
+*.run
