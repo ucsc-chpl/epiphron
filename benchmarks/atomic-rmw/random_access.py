@@ -1,24 +1,21 @@
-# HEATMAP CODE
-from ast import parse
-from cmath import nan
-import seaborn as sns
+import re, os
 import matplotlib.pyplot as plt
-import matplotlib.patheffects as pe
-import numpy as np
-import matplotlib.ticker as ticker
-import re
-import os
-import math
+from matplotlib.ticker import ScalarFormatter
+import scienceplots
 
-def generate_graph(coordinates, title, color):
-    contention_values = [coord[0] for coord in coordinates]
-    throughput_values = [coord[1] for coord in coordinates]
-    plt.plot(contention_values, throughput_values, marker='o', linestyle='-', label=title, color=color, markersize=6)
+def vendor_name(title):
+    if "AMD" in title:
+        return "AMD"
+    elif "Intel" in title:
+        return "Intel"
+    elif "NVIDIA" in title:
+        return "NVIDIA"
+    elif "Apple" in title:
+        return "Apple"
 
-def extract_coordinates_from_file(filename):
+def extract_coordinates(filename):
     coordinates = []
     current_title = ""
-
     with open(filename, 'r') as file:
         for line in file:
             if re.match(r"\(\d+, \d+, \d+.\d+\)", line) or "inf" in line:
@@ -28,41 +25,56 @@ def extract_coordinates_from_file(filename):
                 coordinates.append((x, value, current_title))
             else:
                 current_title = line.strip()
-
     return coordinates
 
-# File name
-filename = "result.txt"
-# Extract coordinates from the file
-coordinates = extract_coordinates_from_file(filename)
-titles = set(coord[2] for coord in coordinates)
-colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-lines_data = {}
+def main():
+    plt.style.use(['science','no-latex'])
+    plt.rcParams['xtick.minor.size'] = 0
+    plt.rcParams['xtick.minor.width'] = 0
+    plt.rcParams['ytick.minor.size'] = 0
+    plt.rcParams['ytick.minor.width'] = 0
 
-for title in sorted(titles):
-    if "random_access:" in title:
-        graph_coordinates = [c for c in coordinates if c[2] == title]
-        lines_data[title] = graph_coordinates
+    # File name
+    read_folder = "results/random_access/"
+    for filename in filter(lambda p: p.endswith(".txt"), os.listdir(read_folder)):
+        print(f"Processing '{filename}'...")
+        # Extract coordinates from the file
+        coordinates = extract_coordinates(os.path.join(read_folder, filename))
+        titles = set(coord[2] for coord in coordinates)
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        lines_data = {}
 
-plt.figure(figsize=(10, 6))  # Adjust figure size if needed
+        for title in sorted(titles):
+            if "random_access:" in title:
+                graph_coordinates = [c[0:2] for c in coordinates if c[2] == title]
+                lines_data[vendor_name(title)] = graph_coordinates
 
-for i, (title, graph_coordinates) in enumerate(lines_data.items()):
-    generate_graph(graph_coordinates, title, colors[i % len(colors)])
+        fig = plt.figure(figsize=(4, 4))  # Adjust figure size if needed
 
-x_ticks = [2 ** i for i in range(0, 11)]  # Powers of 2 from 1 to 1024
-x_labels = [str(2 ** i) for i in range(0, 11)]
-plt.xscale('log')
-plt.xticks(x_ticks, x_labels)
+        for i, (title, graph_coordinates) in enumerate(lines_data.items()):
+            contention_values = [coord[0] for coord in graph_coordinates]
+            throughput_values = [coord[1] for coord in graph_coordinates]
+            plt.plot(contention_values, throughput_values, marker='o', linestyle='-', label=title, markersize=6)
 
-plt.legend(title='Legend', loc='upper right')
-plt.xlabel('# of Atomics')
-plt.ylabel('Atomic operations per microsecond')
-plt.grid(True)
-plt.legend()
+        x_ticks = [2 ** i for i in range(0, 11)]  # Powers of 2 from 1 to 1024
+        x_labels = [str(2 ** i) for i in range(0, 11)]
+        plt.xscale('log')
+        plt.xticks(x_ticks, x_labels)
 
-save_folder = "heatmaps"
-os.makedirs(save_folder, exist_ok=True)
+        ax = fig.axes[0]
 
-filename = os.path.join(save_folder, "combined_plot.png")
-plt.savefig(filename, format='png', bbox_inches='tight')
-plt.show()
+        if len(lines_data) > 1:
+            plt.legend()
+        plt.xlabel('# of Atomics')
+        plt.ylabel('Atomic operations per microsecond')
+
+        save_folder = "heatmaps"
+        os.makedirs(save_folder, exist_ok=True)
+
+        savedfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
+        print(f"Saving '{savedfilename}'...")
+        plt.savefig(savedfilename, format='svg', bbox_inches='tight')
+        plt.savefig(savedfilename.removesuffix(".svg")+".png", bbox_inches="tight")
+
+if __name__ == "__main__":
+    main()

@@ -1,11 +1,10 @@
-# HEATMAP CODE
 import re, os, math
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
-def generate_heatmap(coordinates, title):
+def generate_heatmap(coordinates, title, filename):
     # workgroup and title extraction
     title_information = title.split(":", 1)
     workgroup_information = title_information[0].split(",")
@@ -114,10 +113,10 @@ def generate_heatmap(coordinates, title):
     os.makedirs(save_folder, exist_ok=True)
 
     # Save the plot in the specified folder
-    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg".replace(":", "-").replace(" ", "_"))
+    savedfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
 
-    print(f"Saving '{filename}'...")
-    plt.savefig(filename, format='svg', bbox_inches='tight')
+    print(f"Saving '{savedfilename}'...")
+    plt.savefig(savedfilename, format='svg', bbox_inches='tight')
 
     plt.close()
 
@@ -137,17 +136,21 @@ def extract_coordinates_from_file(filename):
                 current_title = line.strip()
     return coordinates
 
-plt.rcParams["font.serif"] = "cmr10, Computer Modern Serif, DejaVu Serif"
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["axes.formatter.use_mathtext"] = True
-plt.rcParams["mathtext.fontset"] = "cm"
-# File name
-for filename in filter(lambda r: r.endswith(".txt"), os.listdir("results/")):
-    print(f"Processing '{filename}'...")
-    # Extract coordinates from the file
-    coordinates = extract_coordinates_from_file(filename)
-    titles = set(coord[3] for coord in coordinates)
-    for title in sorted(titles):
-        if "random_access" not in title:
-            graph_coordinates = [c for c in coordinates if c[3] == title]
-            generate_heatmap(graph_coordinates, title)
+def main():
+    plt.rcParams["font.serif"] = "cmr10, Computer Modern Serif, DejaVu Serif"
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["axes.formatter.use_mathtext"] = True
+    plt.rcParams["mathtext.fontset"] = "cm"
+    # File name
+    for filename in filter(lambda r: r.endswith(".txt"), os.listdir("results/")):
+        print(f"Processing '{filename}'...")
+        # Extract coordinates from the file
+        coordinates = extract_coordinates_from_file(filename)
+        titles = set(coord[3] for coord in coordinates)
+        for title in sorted(titles):
+            if "random_access" not in title:
+                graph_coordinates = [c for c in coordinates if c[3] == title]
+                generate_heatmap(graph_coordinates, title, filename)
+
+if __name__ == "__main__":
+    main()
