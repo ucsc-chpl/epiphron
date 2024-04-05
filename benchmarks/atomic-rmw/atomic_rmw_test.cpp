@@ -24,7 +24,6 @@
 #endif
 
 using namespace std;
-using nlohmann::json;
 using easyvk::Instance;
 using easyvk::Device;
 using easyvk::Buffer;
