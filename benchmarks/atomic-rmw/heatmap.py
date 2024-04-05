@@ -114,10 +114,10 @@ def generate_heatmap(coordinates, title):
     os.makedirs(save_folder, exist_ok=True)
 
     # Save the plot in the specified folder
-    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.svg".replace(":", "-").replace(" ", "_"))
+    filename = os.path.join(save_folder, f"{title_information[1]},{title_information[0]}.png".replace(":", "-").replace(" ", "_"))
 
     print(f"Saving '{filename}'...")
-    plt.savefig(filename, format='svg', bbox_inches='tight')
+    plt.savefig(filename, format='png', bbox_inches='tight')
 
     plt.close()
 
