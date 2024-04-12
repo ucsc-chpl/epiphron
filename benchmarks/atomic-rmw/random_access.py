@@ -53,7 +53,7 @@ def main():
 
         for i, (title, graph_coordinates) in enumerate(lines_data.items()):
             contention_values = [coord[0] for coord in graph_coordinates]
-            throughput_values = [coord[1] for coord in graph_coordinates]
+            throughput_values = [coord[1] / graph_coordinates[0][1] for coord in graph_coordinates]
             plt.plot(contention_values, throughput_values, marker='o', linestyle='-', label=title, markersize=6)
 
         x_ticks = [2 ** i for i in range(0, 11)]  # Powers of 2 from 1 to 1024
@@ -66,7 +66,7 @@ def main():
         if len(lines_data) > 1:
             plt.legend()
         plt.xlabel('# of Atomics')
-        plt.ylabel('Atomic operations per microsecond')
+        plt.ylabel('Relative atomic operation speedup')
 
         save_folder = "heatmaps"
         os.makedirs(save_folder, exist_ok=True)
