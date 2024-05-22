@@ -100,17 +100,10 @@ extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint3
     
     float rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
-        // auto start = high_resolution_clock::now();
-        // rmwProgram.run();
-        // auto stop = high_resolution_clock::now();
-        // auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
-        // auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
-        // auto duration = s2 - s1;
-        // rate += (float(rmw_iters * workgroup_size * workgroups) / static_cast<float>(duration));
         auto kernelTime = rmwProgram.runWithDispatchTiming();
-        rate += (float(rmw_iters * workgroup_size * workgroups) / float((kernelTime / (double) 1000.0))); 
+        rate += ((rmw_iters * workgroup_size * workgroups) / (kernelTime / (double) 1000.0)); 
     }
-    rate /= float(test_iters);
+    rate /= test_iters;
     rmwProgram.teardown();
     return rate;
 }
@@ -164,13 +157,9 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
 
     // Contention/Padding Values
     list<uint32_t> test_values;
-    uint32_t tmp;
-    if (workgroups * workgroup_size > 1024) tmp = 1024;
-    else tmp = workgroup_size * workgroups;
-    if (test_name == "local_atomic_fa_relaxed") tmp = 256;
-    for (uint32_t i = 1; i <= tmp; i *= 2) {
-        test_values.push_back(i);  
-    } 
+    uint32_t test_range = (workgroups * workgroup_size > 1024) ? 1024 : workgroup_size * workgroups;
+    if (test_name == "local_atomic_fa_relaxed") test_range = 256;
+    for (uint32_t i = 1; i <= test_range; i *= 2) test_values.push_back(i);  
     
     for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
         int random_access_status = 0;
@@ -185,7 +174,7 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
             uint global_work_size = workgroup_size * workgroups;
             const int size = ((global_work_size) * padding) / contention;
-            uint32_t rmw_iters = 16;
+            uint32_t rmw_iters = 128;
 
             // thread_dist == "random_access" ? contention : size -> contention breaks on AMD Discrete
             Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
@@ -215,21 +204,17 @@ extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgro
             contentionBuf.store(0, contention);
             paddingBuf.store(0, padding);
             localBuf.store(0, (workgroup_size*padding)/contention);
-            while(true) {
-                rmwItersBuf.store(0, rmw_iters);
-                resultBuf.clear();
-                vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
-                if (thread_dist == "branched") buffers.emplace_back(branchBuf);
-                else if (thread_dist == "random_access") buffers.emplace_back(contentionBuf);
-                if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(outBuf);
-                else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
-                    buffers.emplace_back(paddingBuf);
-                    buffers.emplace_back(localBuf);
-                }
-                observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-                if (isinf(observed_rate)) rmw_iters *= 2;
-                else break;
+            rmwItersBuf.store(0, rmw_iters);
+            resultBuf.clear();
+            vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
+            if (thread_dist == "branched") buffers.emplace_back(branchBuf);
+            else if (thread_dist == "random_access") buffers.emplace_back(contentionBuf);
+            if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(outBuf);
+            else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
+                buffers.emplace_back(paddingBuf);
+                buffers.emplace_back(localBuf);
             }
+            observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
             resultBuf.teardown();
             contentionBuf.teardown();
             rmwItersBuf.teardown();
@@ -268,6 +253,7 @@ extern "C" void run_rmw_tests(easyvk::Device device) {
         //"atomic_fetch_min",
         //"atomic_fetch_max",
         //"atomic_exchange",
+        //"mixed_operations",
     };
 
     for (const string& strategy : thread_dist) {
