@@ -42,7 +42,8 @@ __global__ void fetch_add(uint *res, uint iter, uint *mapping, float *timing, ui
 
     // each thread performs atomicAdd on predetermined location, for fixed iterations
     for (uint i = 0; i < iter; i++) {
-            atomicAdd(&res[index], 1);
+        //atomicAdd(&res[index], 1);
+        asm("red.global.add.u32 [%0], 1;" :: "l"(&res[index]));
     }
     asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(stopTime));
 

@@ -3,3 +3,4 @@ all:
 
 clean:
 	rm -f atomic_rmw_test
+	rm result.txt
