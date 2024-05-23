@@ -87,12 +87,14 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             Buffer out_buf = Buffer(device, global_work_size, sizeof(uint32_t));
             Buffer strat_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
             Buffer branch_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer mixed_buf = Buffer(device, global_work_size, sizeof(uint32_t));
 
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, contention-1);
 
             for (int i = 0; i < global_work_size; i += 1) {
+                mixed_buf.store<uint32_t>(i, (i % 2));
                 if (thread_dist == "branched") {    
                     branch_buf.store<uint32_t>(i, (i % 32) < 16);
                     strat_buf.store<uint32_t>(i, (i / contention) * padding);
@@ -104,14 +106,18 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                     strat_buf.store<uint32_t>(i, distribution(gen));
                 }
             }
+
             vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
+
             if (thread_dist == "branched") buffers.emplace_back(branch_buf);
             else if (thread_dist == "random_access") buffers.emplace_back(contention_buf);
+            
             if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(out_buf);
             else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
                 buffers.emplace_back(padding_buf);
                 buffers.emplace_back(local_buf);
             }
+            else if (test_name == "mixed_operations") buffers.emplace_back(mixed_buf);
 
             observed_rate = run_rmw_config(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
             benchmark_data << observed_rate << ")" << endl;
@@ -122,6 +128,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             contention_buf.teardown();
             rmw_iters_buf.teardown();
             branch_buf.teardown();
+            mixed_buf.teardown();
             padding_buf.teardown();
             local_buf.teardown();
             strat_buf.teardown();
