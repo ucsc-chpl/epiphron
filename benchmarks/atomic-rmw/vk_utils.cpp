@@ -1,5 +1,6 @@
 #include "vk_utils.h"
 #include <iostream>
+#include <sstream>
 using namespace std;
 using easyvk::Instance;
 using easyvk::Device;
@@ -59,6 +60,25 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             now_serving_buf.teardown();
         }
         return (uint32_t) maxOccupancyBound;
+}
+
+vector<int> select_configurations(vector<string> options, string prompt) {
+    cout << prompt << endl;
+    for (size_t i = 0; i < options.size(); ++i) {
+        cout << i + 1 << ". " << options[i] << endl;
+    }
+    vector<int> selections;
+    string input;
+    cout << "Enter choices separated by space: ";
+    getline(cin, input); 
+    stringstream ss(input);
+    int choice;
+    while (ss >> choice) {
+        if (choice >= 1 && choice <= options.size()) {
+            selections.push_back(choice - 1);
+        }
+    }
+    return selections;
 }
 
 vector<uint32_t> get_spv_code(const string& filename) {

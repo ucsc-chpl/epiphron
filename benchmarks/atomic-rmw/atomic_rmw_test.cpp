@@ -37,7 +37,8 @@ extern "C" float run_rmw_config(easyvk::Device device, uint32_t workgroups, uint
     return rate / test_iters;
 }
 
-extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name, uint32_t rmw_iters) {
+extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
+                                    string thread_dist, vector<uint32_t> spv_code, string test_name, uint32_t rmw_iters) {
     
     benchmark_data << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName
                   << ", " << thread_dist << ": " << test_name << endl;
@@ -135,34 +136,14 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             out_buf.teardown();
         }
     }
-    cout << errors << endl;
+    cout << thread_dist << " " << test_name << " errors: " << errors << endl;
     return;
 }
 
-extern "C" void run_rmw_tests(easyvk::Device device) {  
-    uint32_t test_iters = 64, rmw_iters = 64;
+extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
+    uint32_t test_iters = 64, rmw_iters = 128;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
-
-    vector<string> thread_dist = {
-        "branched", //Contiguous access pattern - special, mixed operations 
-        "cross_warp",
-        "contiguous_access",
-        
-        // Only setup with atomic_fetch_add at the moment
-        //"random_access"
-    };
-    vector<string> atomic_rmws = {
-        "atomic_fa_relaxed",
-        // "atomic_fa_relaxed_out",
-        // "local_atomic_fa_relaxed",
-        // "atomic_cas_succeed_store",
-        // "atomic_cas_succeed_no_store",
-        // "atomic_fetch_min",
-        // "atomic_fetch_max",
-        // "atomic_exchange",
-        //"mixed_operations"
-    };
 
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
@@ -184,18 +165,50 @@ int main() {
     auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	auto physicalDevices = instance.physicalDevices();
 
+    vector<string> device_options;
     for (size_t i = 0; i < physicalDevices.size(); i++) {
-
-        if (i != 0) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
-
-        run_rmw_tests(device);
+        device_options.push_back(device.properties.deviceName);
         device.teardown();
+    }
+    vector<string> thread_dist_options = {
+        "branched", 
+        "cross_warp",
+        "contiguous_access",
+        "random_access"
+    };
+    vector<string> atomic_rmw_options = {
+        "atomic_fa_relaxed",
+        "atomic_fa_relaxed_out",
+        "local_atomic_fa_relaxed",
+        "atomic_cas_succeed_store",
+        "atomic_cas_succeed_no_store",
+        "atomic_fetch_min",
+        "atomic_fetch_max",
+        "atomic_exchange",
+        "mixed_operations"
+    };
+    
+    auto selected_devices = select_configurations(device_options, "Select devices:");
+    auto thread_dist_choices = select_configurations(thread_dist_options, "Select thread distributions:");
+    auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "Select atomic RMWs:");
+    
+    vector<string> selected_thread_dist, selected_atomic_rmws;
 
+    for (const auto& choice : thread_dist_choices) {
+        selected_thread_dist.push_back(thread_dist_options[choice]);
+    }
+    for (const auto& choice : atomic_rmws_choices) {
+        selected_atomic_rmws.push_back(atomic_rmw_options[choice]);
+    }
+
+    for (const auto& choice : selected_devices) {
+        auto device = easyvk::Device(instance, physicalDevices.at(choice));
+        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws);
+        device.teardown();
     }
     
     benchmark_data.close();
-
     instance.teardown();
     return 0;
 }
