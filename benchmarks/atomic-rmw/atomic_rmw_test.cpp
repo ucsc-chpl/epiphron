@@ -141,7 +141,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 }
 
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
-    uint32_t test_iters = 64, rmw_iters = 128;
+    uint32_t test_iters = 64, rmw_iters = 1024;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
 
