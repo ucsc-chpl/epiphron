@@ -19,8 +19,6 @@ using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
 
-ofstream benchmark_data; 
-
 extern "C" float run_rmw_config(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, 
                                 uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
     
@@ -40,6 +38,13 @@ extern "C" float run_rmw_config(easyvk::Device device, uint32_t workgroups, uint
 extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
                                     string thread_dist, vector<uint32_t> spv_code, string test_name, uint32_t rmw_iters) {
     
+    ofstream benchmark_data; 
+    benchmark_data.open(string("results/") + device.properties.deviceName + "_" + thread_dist + "_" + test_name + ".txt"); 
+    if (!benchmark_data.is_open()) {
+        cerr << "Failed to open the output file." << endl;
+        return;
+    }
+    
     benchmark_data << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName
                   << ", " << thread_dist << ": " << test_name << endl;
 
@@ -51,7 +56,6 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
         test_values.push_back(i);
     }
 
-    uint32_t errors = 0;
     for (uint32_t contention : test_values) {
 
         int random_access_status = 0;
@@ -95,9 +99,9 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             uniform_int_distribution<> distribution(0, contention-1);
 
             for (int i = 0; i < global_work_size; i += 1) {
-                mixed_buf.store<uint32_t>(i, (i % 2));
+                mixed_buf.store<uint32_t>(i, (i % 32) < 16); // Thread instruction masking
                 if (thread_dist == "branched") {    
-                    branch_buf.store<uint32_t>(i, (i % 32) < 16);
+                    branch_buf.store<uint32_t>(i, (i % 2));
                     strat_buf.store<uint32_t>(i, (i / contention) * padding);
                 } else if (thread_dist == "cross_warp") {
                     strat_buf.store<uint32_t>(i, (i * padding) % size);
@@ -123,7 +127,6 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             observed_rate = run_rmw_config(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
             benchmark_data << observed_rate << ")" << endl;
             
-            errors += validate_output(result_buf, rmw_iters, test_iters, contention, padding, size, thread_dist, test_name);
 
             result_buf.teardown();
             contention_buf.teardown();
@@ -136,12 +139,13 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             out_buf.teardown();
         }
     }
-    cout << thread_dist << " " << test_name << " errors: " << errors << endl;
+
+    benchmark_data.close();
     return;
 }
 
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
-    uint32_t test_iters = 64, rmw_iters = 1024;
+    uint32_t test_iters = 64, rmw_iters = 4096;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
 
@@ -156,12 +160,7 @@ extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> 
 }
 
 int main() {
-    benchmark_data.open("result.txt"); 
-
-    if (!benchmark_data.is_open()) {
-        cerr << "Failed to open the output file." << endl;
-        return 1;
-    }
+    
     auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	auto physicalDevices = instance.physicalDevices();
 
@@ -188,10 +187,10 @@ int main() {
         "atomic_exchange",
         "mixed_operations"
     };
-    
+
     auto selected_devices = select_configurations(device_options, "Select devices:");
-    auto thread_dist_choices = select_configurations(thread_dist_options, "Select thread distributions:");
-    auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "Select atomic RMWs:");
+    auto thread_dist_choices = select_configurations(thread_dist_options, "\nSelect thread distributions:");
+    auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "\nSelect atomic RMWs:");
     
     vector<string> selected_thread_dist, selected_atomic_rmws;
 
@@ -208,7 +207,6 @@ int main() {
         device.teardown();
     }
     
-    benchmark_data.close();
     instance.teardown();
     return 0;
 }
