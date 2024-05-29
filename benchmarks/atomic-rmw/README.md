@@ -31,12 +31,11 @@ To install the necessary dependencies, follow these steps:
 1. Clone the repository:
     ```bash
     git clone https://github.com/username/repo.githttps://github.com/ucsc-chpl/epiphron.git
-    cd epiphron
     ```
     
 2. Build easyvk:
     ```bash
-    cd easyvk
+    cd epiphron/easyvk/
     git submodule update --init --recursive
     make
     ```
@@ -47,6 +46,7 @@ To run the benchmarks, execute the following series of commands:
 ### Vulkan
 
 ```bash
+cd epiphron/benchmarks/atomic-rmw/
 mkdir results
 make
 ./atomic_rmw_test
@@ -56,6 +56,7 @@ python3 random_access.py #if tested
 
 ### Vulkan (Android)
 ```bash
+cd epiphron/benchmarks/atomic-rmw/
 adb devices # get serial number
 adb -s [SERIAL_NUMBER] shell getprop ro.product.cpu.abilist # get supported ABI, use ro.product.cpu.abi if pre-lollipop version
 mkdir results
@@ -72,7 +73,7 @@ python3 heatmap.py
 ### CUDA
 
 ```bash
-cd cuda_implementation
+cd epiphron/benchmarks/atomic-rmw/cuda_implementation/
 make
 ./atomic_rmw_test
 python3 ../heatmap.py
