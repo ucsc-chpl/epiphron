@@ -27,9 +27,15 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
     return error_count;
 }
 
-uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters) {
+uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters, uint32_t rmw_iters) {
         int maxOccupancyBound = -1;
         for (int i = 0; i < test_iters; i++) {
+            Buffer result_buf =  Buffer(device, workgroup_size * workgroups, sizeof(uint32_t));
+            result_buf.clear();
+            Buffer rmw_iters_buf = Buffer(device, 1, sizeof(uint32_t));
+            rmw_iters_buf.store<uint32_t>(0, rmw_iters);
+            Buffer strat_buf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+            for (int i = 0; i < workgroup_size * workgroups; i += 1) strat_buf.store<uint32_t>(i, i);
             Buffer count_buf = Buffer(device, 1, sizeof(uint32_t));
             count_buf.store<uint32_t>(0, 0);
             Buffer poll_open_buf = Buffer(device, 1, sizeof(uint32_t));
@@ -39,7 +45,8 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             now_serving_buf.store<uint32_t>(0, 0);
             Buffer next_ticket_buf = Buffer(device, 1, sizeof(uint32_t));
             next_ticket_buf.store<uint32_t>(0, 0);
-            vector<Buffer> kernelInputs = {            count_buf, 
+            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf,
+                                                        count_buf, 
                                                         poll_open_buf,
                                                         M_buf,
                                                         now_serving_buf,
@@ -53,6 +60,9 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
                 maxOccupancyBound = count_buf.load<uint32_t>(0);
             }
             program.teardown();
+            result_buf.teardown();
+            rmw_iters_buf.teardown();
+            strat_buf.teardown();
             count_buf.teardown();
             poll_open_buf.teardown();
             M_buf.teardown();
