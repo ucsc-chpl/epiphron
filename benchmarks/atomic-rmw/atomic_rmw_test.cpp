@@ -154,8 +154,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     return;
 }
 
-extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
-    uint32_t test_iters = 64, rmw_iters = 16;
+extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws, uint32_t rmw_iters) {  
+    uint32_t test_iters = 64;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
     cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
@@ -203,7 +203,8 @@ int main() {
     auto selected_devices = select_configurations(device_options, "Select devices:");
     auto thread_dist_choices = select_configurations(thread_dist_options, "\nSelect thread distributions:");
     auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "\nSelect atomic RMWs:");
-    
+    uint32_t selected_rmw_iterations = get_params("\nEnter the number of RMW iterations: ");
+
     vector<string> selected_thread_dist, selected_atomic_rmws;
 
     for (const auto& choice : thread_dist_choices) {
@@ -216,7 +217,7 @@ int main() {
     for (const auto& choice : selected_devices) {
         auto device = easyvk::Device(instance, physicalDevices.at(choice));
         cout << "\nRunning RMW benchmarks on " << device.properties.deviceName << endl;
-        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws);
+        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws, selected_rmw_iterations);
         device.teardown();
     }
     

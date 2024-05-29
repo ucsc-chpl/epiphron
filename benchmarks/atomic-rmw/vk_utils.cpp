@@ -97,6 +97,22 @@ vector<uint32_t> get_spv_code(const string& filename) {
     return spv_code;
 }
 
+uint32_t get_params(string prompt) {
+    int value;
+    string input;
+    while (true) {
+        cout << prompt;
+        getline(cin, input);
+        stringstream ss(input);
+        if (ss >> value && ss.eof() && value > 0) {
+            break;
+        }
+        cout << "Invalid input" << endl;
+    }
+
+    return value;
+}
+
 void log(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
