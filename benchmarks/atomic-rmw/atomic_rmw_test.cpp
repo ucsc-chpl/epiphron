@@ -55,7 +55,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     for (uint32_t i = 1; i <= test_range; i *= 2) {
         test_values.push_back(i);
     }
-
+    uint32_t loading_counter = 0;
     for (uint32_t contention : test_values) {
 
         int random_access_status = 0;
@@ -137,6 +137,16 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             local_buf.teardown();
             strat_buf.teardown();
             out_buf.teardown();
+
+            loading_counter++;
+            if (test_name == "local_atomic_fa_relaxed") {
+                cout << "\r" << thread_dist << ", " << test_name << ": "
+                << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "%";
+            } else {
+                cout << "\r" << thread_dist << ", " << test_name << ": " 
+                << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "%";
+            }
+            cout.flush();
         }
     }
 
@@ -145,15 +155,17 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 }
 
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
-    uint32_t test_iters = 64, rmw_iters = 4096;
+    uint32_t test_iters = 64, rmw_iters = 16;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
-
+    cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
+    cout << "Trials: " << test_iters << ", RMW iterations: " << rmw_iters << endl;
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
             vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
             if (rmw == "local_atomic_fa_relaxed") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw, rmw_iters);
             else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw, rmw_iters);
+            cout << endl;
         }
     }
     return;
@@ -203,6 +215,7 @@ int main() {
 
     for (const auto& choice : selected_devices) {
         auto device = easyvk::Device(instance, physicalDevices.at(choice));
+        cout << "\nRunning RMW benchmarks on " << device.properties.deviceName << endl;
         rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws);
         device.teardown();
     }
