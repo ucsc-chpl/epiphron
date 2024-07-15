@@ -1,18 +1,7 @@
-#include <stdexcept>
-#include <stdarg.h>
-#include <string>
-#include <chrono>
 #include <list>
 #include <iostream>
-#include <fstream>
-#include <vector>
-#include <cmath>
-#include <cstdio>
-#include <cstdint>
-#include <cstdlib>
 #include <random>
-
-#include "easyvk.h"
+#include "vk_utils.h"
 #include "json.hpp"
 
 #ifdef __ANDROID__
@@ -29,279 +18,209 @@ using easyvk::Device;
 using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
-using namespace chrono;
 
-const char* os_name() {
-    #ifdef _WIN32
-    return "Windows (32-bit)";
-    #elif _WIN64
-    return "Windows (64-bit)";
-    #elif __APPLE__
-        #include <TargetConditionals.h>
-        #if TARGET_IPHONE_SIMULATOR
-        return "iPhone (Simulator)";
-        #elif TARGET_OS_MACCATALYST
-        return "macOS Catalyst";
-        #elif TARGET_OS_IPHONE
-        return "iPhone";
-        #elif TARGET_OS_MAC
-        return "macOS";
-        #else
-        return "Other (Apple)";
-        #endif
-    #elif __ANDROID__
-    return "Android";
-    #elif __linux__
-    return "Linux";
-    #elif __unix || __unix||
-    return "Unix";
-    #else
-    return "Other";
-    #endif
-}
-
-ofstream benchmarkData; 
-
-void log(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    #ifdef __ANDROID__
-    __android_log_vprint(ANDROID_LOG_INFO, APPNAME, fmt, args);
-    #else
-    vprintf(fmt, args);
-    #endif
-    va_end(args);
-}
-
-vector<uint32_t> getSPVCode(const string& filename) {
-    ifstream file(filename);
-    vector<uint32_t> spv_code;
-    char ch;
-
-    while (file >> ch) {
-        if (isdigit(ch)) {
-            file.unget();
-            uint32_t value;
-            file >> value;
-            spv_code.push_back(value);
-        }
-    }
-
-    file.close();
-    return spv_code;
-}
-
-extern "C" float rmw_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
+extern "C" float run_rmw_config(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t rmw_iters, 
+                                uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
     
-    Program rmwProgram = Program(device, spv_code, buffers);
-    rmwProgram.setWorkgroups(workgroups);
-    rmwProgram.setWorkgroupSize(workgroup_size);
-    rmwProgram.initialize("rmw_test");
-    
+    Program rmw_program = Program(device, spv_code, buffers);
+    rmw_program.setWorkgroups(workgroups);
+    rmw_program.setWorkgroupSize(workgroup_size);
+    rmw_program.initialize("rmw_test");
     float rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
-        // auto start = high_resolution_clock::now();
-        // rmwProgram.run();
-        // auto stop = high_resolution_clock::now();
-        // auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
-        // auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
-        // auto duration = s2 - s1;
-        // rate += (float(rmw_iters * workgroup_size * workgroups) / static_cast<float>(duration));
-        auto kernelTime = rmwProgram.runWithDispatchTiming();
-        rate += (float(rmw_iters * workgroup_size * workgroups) / float((kernelTime / (double) 1000.0))); 
+        auto kernel_time = rmw_program.runWithDispatchTiming();
+        rate += ((rmw_iters * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
     }
-    rate /= float(test_iters);
-    rmwProgram.teardown();
-    return rate;
+    rmw_program.teardown();
+    return rate / test_iters;
 }
 
-extern "C" uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters) {
-        
-        int maxOccupancyBound = -1;
-        for (int i = 0; i < test_iters; i++) {
-            Buffer count_buf = Buffer(device, 1, sizeof(uint32_t));
-            count_buf.store<uint32_t>(0, 0);
-            Buffer poll_open_buf = Buffer(device, 1, sizeof(uint32_t));
-            poll_open_buf.store<uint32_t>(0, 1); // Poll is initially open.
-            Buffer M_buf = Buffer(device, workgroups, sizeof(uint32_t));
-            Buffer now_serving_buf = Buffer(device, 1, sizeof(uint32_t));
-            now_serving_buf.store<uint32_t>(0, 0);
-            Buffer next_ticket_buf = Buffer(device, 1, sizeof(uint32_t));
-            next_ticket_buf.store<uint32_t>(0, 0);
-
-            vector<Buffer> kernelInputs = {            count_buf, 
-                                                        poll_open_buf,
-                                                        M_buf,
-                                                        now_serving_buf,
-                                                        next_ticket_buf};
-            auto program = Program(device, spv_code, kernelInputs);
-            program.setWorkgroups(workgroups);
-            program.setWorkgroupSize(workgroup_size);
-            program.initialize("occupancy_discovery");
-            program.run();
-            if ((int) count_buf.load<uint32_t>(0) > maxOccupancyBound) {
-                maxOccupancyBound = count_buf.load<uint32_t>(0);
-            }
-            program.teardown();
-            count_buf.teardown();
-            poll_open_buf.teardown();
-            M_buf.teardown();
-            next_ticket_buf.teardown();
-            now_serving_buf.teardown();
-        }
-
-        return (uint32_t) maxOccupancyBound;
-
-
-}
-
-
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, string thread_dist, vector<uint32_t> spv_code, string test_name) {
-    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName;
-    char currentTest[100];
-    snprintf(currentTest, 100, ", %s: %s\n", thread_dist.c_str(), test_name.c_str());
-    benchmarkData << currentTest;
-
-    // Contention/Padding Values
-    list<uint32_t> test_values;
-    uint32_t tmp;
-    if (workgroups * workgroup_size > 1024) tmp = 1024;
-    else tmp = workgroup_size * workgroups;
-    if (test_name == "local_atomic_fa_relaxed") tmp = 256;
-    for (uint32_t i = 1; i <= tmp; i *= 2) {
-        test_values.push_back(i);  
-    } 
+extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
+                                    string thread_dist, vector<uint32_t> spv_code, string test_name, uint32_t rmw_iters) {
     
-    for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
+    ofstream benchmark_data; 
+    benchmark_data.open(string("results/") + device.properties.deviceName + "_" + thread_dist + "_" + test_name + ".txt"); 
+    if (!benchmark_data.is_open()) {
+        cerr << "Failed to open the output file." << endl;
+        return;
+    }
+    
+    benchmark_data << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName
+                  << ", " << thread_dist << ": " << test_name << endl;
+
+    list<uint32_t> test_values;
+    uint32_t test_range = min((workgroups * workgroup_size > 1024) ? 1024 : workgroup_size * workgroups, 
+                    (test_name == "local_atomic_fa_relaxed") ? 256 : workgroup_size * workgroups);
+
+    for (uint32_t i = 1; i <= test_range; i *= 2) {
+        test_values.push_back(i);
+    }
+    uint32_t loading_counter = 0;
+    for (uint32_t contention : test_values) {
+
         int random_access_status = 0;
-        for (auto it2 = test_values.begin(); it2 != test_values.end(); ++it2) {
-            if (test_name == "local_atomic_fa_relaxed" && *it2 > 8) continue; 
-            if (!random_access_status && thread_dist == "random_access") random_access_status = 1;
-            else if (random_access_status && thread_dist == "random_access") continue;
+        for (uint32_t padding : test_values) {
+            
+            if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
+            
+            if  (thread_dist == "random_access") {
+                if (!random_access_status) random_access_status = 1;
+                else continue;
+            }
 
-            uint32_t contention = *it1;
-            uint32_t padding = *it2;
+            benchmark_data << "(" << contention << ", " << padding << ", ";
+
             float observed_rate = 0.0;
-            benchmarkData << "(" + to_string(contention) + ", " + to_string(padding) + ", ";
-            uint global_work_size = workgroup_size * workgroups;
-            const int size = ((global_work_size) * padding) / contention;
-            uint32_t rmw_iters = 16;
+            uint32_t global_work_size = workgroup_size * workgroups;
+            uint32_t size = ((global_work_size) * padding) / contention;
 
-            // thread_dist == "random_access" ? contention : size -> contention breaks on AMD Discrete
-            Buffer resultBuf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
-            Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer paddingBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer rmwItersBuf = Buffer(device, 1, sizeof(uint32_t));
-            Buffer stratBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
-            Buffer branchBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
-            Buffer localBuf = Buffer(device, 1, sizeof(uint32_t));
+            Buffer result_buf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
+            result_buf.clear();
 
-            Buffer outBuf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer contention_buf = Buffer(device, 1, sizeof(uint32_t));
+            contention_buf.store<uint32_t>(0, contention);
+
+            Buffer padding_buf = Buffer(device, 1, sizeof(uint32_t));
+            padding_buf.store<uint32_t>(0, padding);
+
+            Buffer rmw_iters_buf = Buffer(device, 1, sizeof(uint32_t));
+            rmw_iters_buf.store<uint32_t>(0, rmw_iters);
+
+            Buffer local_buf = Buffer(device, 1, sizeof(uint32_t));
+            local_buf.store<uint32_t>(0, (workgroup_size * padding) / contention);
+
+            Buffer out_buf = Buffer(device, global_work_size, sizeof(uint32_t));
+            Buffer strat_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer branch_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer mixed_buf = Buffer(device, global_work_size, sizeof(uint32_t));
+
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, contention-1);
+
             for (int i = 0; i < global_work_size; i += 1) {
+                mixed_buf.store<uint32_t>(i, (i % 32) < 16); // Thread instruction masking
                 if (thread_dist == "branched") {    
-                    branchBuf.store<uint32_t>(i, i % 2);
-                    stratBuf.store<uint32_t>(i, (i / contention) * padding);
+                    branch_buf.store<uint32_t>(i, (i % 2));
+                    strat_buf.store<uint32_t>(i, (i / contention) * padding);
                 } else if (thread_dist == "cross_warp") {
-                    stratBuf.store<uint32_t>(i, (i * padding) % size);
+                    strat_buf.store<uint32_t>(i, (i * padding) % size);
                 } else if (thread_dist == "contiguous_access") {
-                    stratBuf.store<uint32_t>(i, (i / contention) * padding);
+                    strat_buf.store<uint32_t>(i, (i / contention) * padding);
                 } else if (thread_dist == "random_access") {
-                    stratBuf.store<uint32_t>(i, distribution(gen));
+                    strat_buf.store<uint32_t>(i, distribution(gen));
                 }
             }
-            contentionBuf.store(0, contention);
-            paddingBuf.store(0, padding);
-            localBuf.store(0, (workgroup_size*padding)/contention);
-            while(true) {
-                rmwItersBuf.store(0, rmw_iters);
-                resultBuf.clear();
-                vector<Buffer> buffers = {resultBuf, rmwItersBuf, stratBuf};
-                if (thread_dist == "branched") buffers.emplace_back(branchBuf);
-                else if (thread_dist == "random_access") buffers.emplace_back(contentionBuf);
-                if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(outBuf);
-                else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
-                    buffers.emplace_back(paddingBuf);
-                    buffers.emplace_back(localBuf);
-                }
-                observed_rate = rmw_benchmark(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
-                if (isinf(observed_rate)) rmw_iters *= 2;
-                else break;
+
+            vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
+
+            if (thread_dist == "branched") buffers.emplace_back(branch_buf);
+            else if (thread_dist == "random_access") buffers.emplace_back(contention_buf);
+            
+            if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(out_buf);
+            else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
+                buffers.emplace_back(padding_buf);
+                buffers.emplace_back(local_buf);
             }
-            resultBuf.teardown();
-            contentionBuf.teardown();
-            rmwItersBuf.teardown();
-            branchBuf.teardown();
-            paddingBuf.teardown();
-            localBuf.teardown();
-            stratBuf.teardown();
-            outBuf.teardown();
-            benchmarkData << to_string(observed_rate) + ")" << endl;
+            else if (test_name == "mixed_operations") buffers.emplace_back(mixed_buf);
+
+            observed_rate = run_rmw_config(device, workgroups, workgroup_size, rmw_iters, test_iters, spv_code, buffers);
+            benchmark_data << observed_rate << ")" << endl;
+            
+
+            result_buf.teardown();
+            contention_buf.teardown();
+            rmw_iters_buf.teardown();
+            branch_buf.teardown();
+            mixed_buf.teardown();
+            padding_buf.teardown();
+            local_buf.teardown();
+            strat_buf.teardown();
+            out_buf.teardown();
+
+            loading_counter++;
+            if (test_name == "local_atomic_fa_relaxed") {
+                cout << "\r" << thread_dist << ", " << test_name << ": "
+                << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "% ";
+            } else {
+                cout << "\r" << thread_dist << ", " << test_name << ": " 
+                << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
+            }
+            cout.flush();
         }
     }
+
+    benchmark_data.close();
     return;
 }
 
-extern "C" void run_rmw_tests(easyvk::Device device) {  
+extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws, uint32_t rmw_iters) {  
     uint32_t test_iters = 64;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, getSPVCode("occupancy_discovery.cinit"), 16);
-    // We desperately need a better way to handle this - command flags?? interactive menu?? please don't make me recompile to change test type
-    vector<string> thread_dist = {
-        //"branched",
-        //"cross_warp",
-        "contiguous_access",
-
-        // Only setup with atomic_fetch_add at the moment
-        //"random_access"
-    };
-    vector<string> atomic_rmws = {
-        "atomic_fa_relaxed",
-        //"atomic_fa_relaxed_out",
-        //"local_atomic_fa_relaxed",
-        //"atomic_cas_succeed_store",
-        //"atomic_cas_succeed_no_store",
-
-        // Only setup with contiguous access at the moment
-        //"atomic_fetch_min",
-        //"atomic_fetch_max",
-        //"atomic_exchange",
-    };
-
+    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16, rmw_iters);
+    cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
+    cout << "Trials: " << test_iters << ", RMW iterations: " << rmw_iters << endl;
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
-            vector<uint32_t> spv_code = getSPVCode(strategy + "/" + rmw + ".cinit");
-            if (rmw == "local_atomic_fa_relaxed") run(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
-            else run(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
+            vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
+            if (rmw == "local_atomic_fa_relaxed") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw, rmw_iters);
+            else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw, rmw_iters);
+            cout << endl;
         }
     }
     return;
 }
 
 int main() {
-    benchmarkData.open("result.txt"); 
-
-    if (!benchmarkData.is_open()) {
-        cerr << "Failed to open the output file." << endl;
-        return 1;
-    }
+    
     auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	auto physicalDevices = instance.physicalDevices();
 
+    vector<string> device_options;
     for (size_t i = 0; i < physicalDevices.size(); i++) {
-
-
         auto device = easyvk::Device(instance, physicalDevices.at(i));
-
-        run_rmw_tests(device);
+        device_options.push_back(device.properties.deviceName);
         device.teardown();
+    }
+    vector<string> thread_dist_options = {
+        "branched", 
+        "cross_warp",
+        "contiguous_access",
+        "random_access"
+    };
+    vector<string> atomic_rmw_options = {
+        "atomic_fa_relaxed",
+        "atomic_fa_relaxed_out",
+        "local_atomic_fa_relaxed",
+        "atomic_cas_succeed_store",
+        "atomic_cas_succeed_no_store",
+        "atomic_fetch_min",
+        "atomic_fetch_max",
+        "atomic_exchange",
+        "mixed_operations"
+    };
 
+    auto selected_devices = select_configurations(device_options, "Select devices:");
+    auto thread_dist_choices = select_configurations(thread_dist_options, "\nSelect thread distributions:");
+    auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "\nSelect atomic RMWs:");
+    uint32_t selected_rmw_iterations = get_params("\nEnter the number of RMW iterations: ");
+
+    vector<string> selected_thread_dist, selected_atomic_rmws;
+
+    for (const auto& choice : thread_dist_choices) {
+        selected_thread_dist.push_back(thread_dist_options[choice]);
+    }
+    for (const auto& choice : atomic_rmws_choices) {
+        selected_atomic_rmws.push_back(atomic_rmw_options[choice]);
+    }
+
+    for (const auto& choice : selected_devices) {
+        auto device = easyvk::Device(instance, physicalDevices.at(choice));
+        cout << "\nRunning RMW benchmarks on " << device.properties.deviceName << endl;
+        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws, selected_rmw_iterations);
+        device.teardown();
     }
     
-    benchmarkData.close();
-
     instance.teardown();
     return 0;
 }

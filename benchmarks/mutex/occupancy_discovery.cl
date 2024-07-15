@@ -41,10 +41,7 @@ static uint get_occupancy(__global uint *count,
     return PARTICIPATING;
 }
 
-__kernel void occupancy_discovery(__global atomic_uint* res,
-                                  __global uint* iters,
-                                  __global uint* indexes,
-                                  __global uint *count, 
+__kernel void occupancy_discovery(__global uint *count, 
                                   __global uint *poll_open,
                                   __global uint *M,
                                   __global atomic_uint *now_serving,
@@ -53,9 +50,6 @@ __kernel void occupancy_discovery(__global atomic_uint* res,
     // Single represesentative thread from each workgroups runs the occupancy_discovery protocol
     if (get_local_id(0) == 0) {
         get_occupancy(count, poll_open, M, now_serving, next_ticket);
-    }
-    for (uint i = 0; i < *iters; i++) {
-        atomic_fetch_add_explicit(&res[indexes[get_global_id(0)]], 1, memory_order_relaxed);
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     // Utilize local memory so it's not compiled away.

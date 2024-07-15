@@ -1,18 +1,20 @@
 CXXFLAGS = -std=c++17
 CINITS = $(patsubst %.cl,%.cinit,$(wildcard branched/*.cl contiguous_access/*.cl random_access/*.cl cross_warp/*.cl *.cl))
+BENCHMARK = atomic_rmw_test
+SOURCES = $(wildcard *cpp)
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
 $(info OS is $(OS))
 CXXFLAGS += -rpath /usr/local/lib
 endif
 
-all: easyvk atomic_rmw_test
+all: easyvk $(BENCHMARK)
 
 easyvk:
 	make -C ../../easyvk
 
-atomic_rmw_test: atomic_rmw_test.cpp $(CINITS)
-	$(CXX) $(CXXFLAGS) -I../../easyvk/src ../../easyvk/build/easyvk.o atomic_rmw_test.cpp -lvulkan -o atomic_rmw_test.run
+$(BENCHMARK): $(SOURCES) $(CINITS)
+	$(CXX) $(CXXFLAGS) -I../../easyvk/src -I. ../../easyvk/build/easyvk.o $(SOURCES) -lvulkan -o $(BENCHMARK).run
 
 android: easyvk atomic_rmw_test
 	ndk-build APP_BUILD_SCRIPT=./Android.mk  NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk NDK_LIBS_OUT=./build/android/libs NDK_OUT=./build/android/obj
@@ -36,3 +38,4 @@ clean:
 	rm -rf *.spv
 	rm -rf build
 	rm *.run
+	rm *.o

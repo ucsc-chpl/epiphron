@@ -1,96 +1,23 @@
-#include <stdexcept>
-#include <stdarg.h>
-#include <string>
-#include <chrono>
 #include <list>
 #include <iostream>
-#include <fstream>
-#include <vector>
-#include <cmath>
-#include <cstdio>
-#include <cstdint>
-#include <cstdlib>
-#include <unistd.h>
-
-#include "easyvk.h"
-#include "../_example/json.h"
+#include <random>
+#include "vk_utils.h"
 
 #ifdef __ANDROID__
 #include <android/log.h>
 #define USE_VALIDATION_LAYERS false
-#define APPNAME "GPUMutexTests"
+#define APPNAME "GPURmwTests"
 #else
 #define USE_VALIDATION_LAYERS true
 #endif
 
 using namespace std;
-using nlohmann::json;
 using easyvk::Instance;
 using easyvk::Device;
 using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
-using namespace chrono;
 
-const char* os_name() {
-    #ifdef _WIN32
-    return "Windows (32-bit)";
-    #elif _WIN64
-    return "Windows (64-bit)";
-    #elif __APPLE__
-        #include <TargetConditionals.h>
-        #if TARGET_IPHONE_SIMULATOR
-        return "iPhone (Simulator)";
-        #elif TARGET_OS_MACCATALYST
-        return "macOS Catalyst";
-        #elif TARGET_OS_IPHONE
-        return "iPhone";
-        #elif TARGET_OS_MAC
-        return "macOS";
-        #else
-        return "Other (Apple)";
-        #endif
-    #elif __ANDROID__
-    return "Android";
-    #elif __linux__
-    return "Linux";
-    #elif __unix || __unix||
-    return "Unix";
-    #else
-    return "Other";
-    #endif
-}
-
-ofstream benchmarkData;
-
-void log(const char* fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-    #ifdef __ANDROID__
-    __android_log_vprint(ANDROID_LOG_INFO, APPNAME, fmt, args);
-    #else
-    vprintf(fmt, args);
-    #endif
-    va_end(args);
-}
-
-vector<uint32_t> getSPVCode(const string& filename) {
-    ifstream file(filename);
-    vector<uint32_t> spv_code;
-    char ch;
-
-    while (file >> ch) {
-        if (isdigit(ch)) {
-            file.unget();
-            uint32_t value;
-            file >> value;
-            spv_code.push_back(value);
-        }
-    }
-
-    file.close();
-    return spv_code;
-}
 
 extern "C" float mutex_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t mutex_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
     
@@ -100,138 +27,134 @@ extern "C" float mutex_benchmark(easyvk::Device device, uint32_t workgroups, uin
     mutexProgram.initialize("mutex_test");
     float rate = 0.0;
     for (int i = 1; i <= test_iters; i++) {
-        auto start = high_resolution_clock::now();
-        mutexProgram.run();
-        auto stop = high_resolution_clock::now();
-        auto s1 = duration_cast<milliseconds>(start.time_since_epoch()).count();
-        auto s2 = duration_cast<milliseconds>(stop.time_since_epoch()).count();
-        auto duration = s2 - s1;
-        rate += (float(mutex_iters) / static_cast<float>(duration));
+        auto kernelTime = mutexProgram.runWithDispatchTiming();
+        rate += (float(mutex_iters * workgroup_size * workgroups) / float((kernelTime / (double) 1000.0))); 
     }
     rate /= float(test_iters);
     mutexProgram.teardown();
     return rate;
 }
 
+extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
+                        uint32_t mutex_iters, vector<uint32_t> spv_code, string test_name) {
+    
+    ofstream benchmarkData; 
+    benchmarkData.open(string("results/") + device.properties.deviceName + "_" + test_name + ".txt"); 
+    if (!benchmarkData.is_open()) {
+        cerr << "Failed to open the output file." << endl;
+        return;
+    }
 
-
-extern "C" void run(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, vector<uint32_t> spv_code, string test_name) {
-
-    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName + ", " + test_name + "\n";
+    benchmarkData << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName 
+                    + ", " + test_name + "\n";
 
     list<uint32_t> test_values;
-
     for (uint32_t i = 1; i <= workgroups; i *= 2) {
         test_values.push_back(i);  
     }
 
     int errors = 0;
-    for (auto it1 = test_values.begin(); it1 != test_values.end(); ++it1) {
-        uint32_t contention = *it1;
+    for (uint32_t number_atomics : test_values) {
+        
         float observed_rate = 0.0;
-        benchmarkData << "(" + to_string(contention) + ", ";
-        //const int size = workgroups / contention;
-        uint32_t mutex_iters = 16;
-        Buffer lockBuf = Buffer(device, 1, sizeof(uint32_t)); //
-        Buffer resultBuf = Buffer(device, 1, sizeof(uint32_t)); //
-        Buffer ticketBuf = Buffer(device, 1, sizeof(uint32_t)); //
-        Buffer backoffBuf = Buffer(device, (workgroup_size * workgroups) * 32, sizeof(unsigned char));
-        //Buffer waitingBuf = Buffer(device, 1, sizeof(uint32_t));
+        benchmarkData << "(" + to_string(number_atomics) + ", ";
+
+        Buffer lockBuf = Buffer(device, number_atomics, sizeof(uint32_t)); 
+        lockBuf.clear();
+        
+        Buffer resultBuf = Buffer(device, number_atomics, sizeof(uint32_t)); 
+        resultBuf.clear();
+
         Buffer mutexItersBuf = Buffer(device, 1, sizeof(uint32_t));
-        Buffer contentionBuf = Buffer(device, 1, sizeof(uint32_t));
-        contentionBuf.store(0, contention);
-        while(true) {
-            mutexItersBuf.store(0, mutex_iters);
-            lockBuf.clear();
-            resultBuf.clear();
-            vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf};
-            if (test_name == "ticket_lock") {
-                ticketBuf.clear();
-                buffers.emplace_back(ticketBuf); 
-            } else if (test_name == "cas_lock_backoff") {
-                backoffBuf.clear();
-                buffers.emplace_back(backoffBuf); 
-                //buffers.emplace_back(waitingBuf);
-            } else if (test_name == "ticket_lock_backoff") {
-                ticketBuf.clear();
-                backoffBuf.clear();
-                buffers.emplace_back(ticketBuf);
-                buffers.emplace_back(backoffBuf); 
-            }
-            observed_rate = mutex_benchmark(device, contention, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
-            if (isinf(observed_rate)) mutex_iters *= 2;
-            else break;
+        mutexItersBuf.store<uint32_t>(0, mutex_iters);
+
+        random_device rd;
+        mt19937 gen(rd()); 
+        uniform_int_distribution<> distribution(0, number_atomics-1);
+        Buffer indexBuf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
+        for (int i = 0; i < workgroup_size * workgroups; i += 1) {
+            indexBuf.store<uint32_t>(i, distribution(gen));
         }
-        // Buffer Validation
-        if (resultBuf.load<uint32_t>(0) != mutex_iters * test_iters * contention) errors += 1;
+
+        Buffer sizeBuf = Buffer(device, 1, sizeof(uint32_t));
+        sizeBuf.store<uint32_t>(0, number_atomics); 
+
+        Buffer ticketBuf = Buffer(device, number_atomics, sizeof(uint32_t));
+        ticketBuf.clear();
+        
+        Buffer backoffBuf = Buffer(device, (workgroup_size * workgroups) * 32, sizeof(unsigned char));
+        backoffBuf.clear();
+
+        
+        vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, indexBuf, sizeBuf};
+        if (test_name == "ticket_lock") {
+            buffers.emplace_back(ticketBuf); 
+        } else if (test_name == "cas_lock_backoff") {
+            buffers.emplace_back(backoffBuf); 
+        } else if (test_name == "ticket_lock_backoff") {
+            buffers.emplace_back(ticketBuf);
+            buffers.emplace_back(backoffBuf); 
+        }
+        observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
+
         lockBuf.teardown();
         resultBuf.teardown();
         ticketBuf.teardown();
         backoffBuf.teardown();
-        //waitingBuf.teardown();
         mutexItersBuf.teardown();
-        contentionBuf.teardown();
+        indexBuf.teardown();
+        sizeBuf.teardown();
         benchmarkData << to_string(observed_rate) + ")" << endl;
     }
-    log("Error count: %d\n", errors);
+    benchmarkData.close();
     return;
 }
 
-extern "C" void run_mutex_tests(easyvk::Device device) {
-    uint32_t test_iters = 64;
+extern "C" void mutex_benchmark_suite(easyvk::Device device, const vector<string> &mutexes) {
+    uint32_t test_iters = 64, mutex_iters = 1024;
+    uint32_t workgroup_size = 1;
+    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
 
-    uint32_t maxComputeWorkGroupCount = device.properties.limits.maxComputeWorkGroupCount[0];
-    if (maxComputeWorkGroupCount > 1024) maxComputeWorkGroupCount = 1024;
-
-    uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    if (workgroup_size > 1) workgroup_size = 1;
-
-    double quotient = static_cast<double>(maxComputeWorkGroupCount) / workgroup_size;
-
-    uint32_t workgroups = static_cast<uint32_t>(ceil(quotient));
-
-    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_peeking.cinit"), "cas_lock_relaxed_peeking");
-
-    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock.cinit"), "cas_lock");
-
-    //run(device, workgroups, workgroup_size, test_iters, getSPVCode("cas_lock_backoff.cinit"), "cas_lock_backoff");
-
-    run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock.cinit"), "ticket_lock");
-
-    run(device, workgroups, workgroup_size, test_iters, getSPVCode("ticket_lock_backoff.cinit"), "ticket_lock_backoff");
-
+    for (const string& mutex : mutexes) {
+        mutex_microbenchmark(device, 46, workgroup_size, test_iters, mutex_iters, get_spv_code(mutex + ".cinit"), mutex);
+    }
     return;
 }
 
 int main() {
-    benchmarkData.open("result.txt"); 
-
-    if (!benchmarkData.is_open()) {
-        cerr << "Failed to open the output file." << endl;
-        return 1;
-    }
 
     auto instance = easyvk::Instance(USE_VALIDATION_LAYERS);
 	auto physicalDevices = instance.physicalDevices();
 
+    vector<string> device_options;
     for (size_t i = 0; i < physicalDevices.size(); i++) {
-
-        if (i != 1) continue;
         auto device = easyvk::Device(instance, physicalDevices.at(i));
-
-        run_mutex_tests(device);
+        device_options.push_back(device.properties.deviceName);
         device.teardown();
+    }
+    vector<string> mutex_options = {
+        "cas_lock_relaxed_peeking",
+        "cas_lock",
+        //"cas_lock_backoff",
+        //"ticket_lock",
+        //"ticket_lock_backoff",
+    };
 
+    auto selected_devices = select_configurations(device_options, "Select devices:");
+    auto mutex_choices = select_configurations(mutex_options, "\nSelect mutex implementation:");
+
+    vector<string> selected_mutexes;
+
+    for (const auto& choice : mutex_choices) {
+        selected_mutexes.push_back(mutex_options[choice]);
+    }
+
+    for (const auto& choice : selected_devices) {
+        auto device = easyvk::Device(instance, physicalDevices.at(choice));
+        mutex_benchmark_suite(device, selected_mutexes);
+        device.teardown();
     }
     
-    benchmarkData.close();
-
     instance.teardown();
-
-    #ifdef __ANDROID__
     return 0;
-    #else
-    system("python3 graph.py");
-    return 0;
-    #endif
 }
