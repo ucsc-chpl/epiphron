@@ -34,6 +34,11 @@ def main():
     plt.rcParams['ytick.minor.size'] = 0
     plt.rcParams['ytick.minor.width'] = 0
 
+    plt.rcParams["font.serif"] = "Linux Libertine"
+    plt.rcParams["font.family"] = "serif"
+    plt.rcParams["axes.formatter.use_mathtext"] = True
+    plt.rcParams["mathtext.fontset"] = "cm"
+
     # File name
     read_folder = "results/random_access/"
     for filename in filter(lambda p: p.endswith(".txt"), os.listdir(read_folder)):
@@ -61,20 +66,17 @@ def main():
         plt.xscale('log')
         plt.xticks(x_ticks, x_labels)
 
-        ax = fig.axes[0]
-
         if len(lines_data) > 1:
             plt.legend()
         plt.xlabel('# of Atomics')
         plt.ylabel('Relative atomic operation speedup')
 
-        save_folder = "heatmaps"
+        save_folder = "graphs"
         os.makedirs(save_folder, exist_ok=True)
 
         savedfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
         print(f"Saving '{savedfilename}'...")
         plt.savefig(savedfilename, format='svg', bbox_inches='tight')
-        plt.savefig(savedfilename.removesuffix(".svg")+".png", bbox_inches="tight")
 
 if __name__ == "__main__":
     main()

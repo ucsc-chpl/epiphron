@@ -1,6 +1,7 @@
 import re, os, math
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
+import matplotlib.colors as cl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 
@@ -10,11 +11,14 @@ def generate_heatmap(coordinates, title, filename):
     workgroup_information = title_information[0].split(",")
     workgroup_size = int(workgroup_information[0])
     workgroups = int(workgroup_information[1])
+    device_name = title_information[1]
     final_size = 0
     if 'local' in title_information[1]:
         final_size = 256
     elif workgroup_size * workgroups > 1024:
         final_size = 1024
+    elif 'Ryzen' in device_name:
+        final_size = 16
     else:
         final_size = workgroup_size * workgroups
     grid_scale = int(math.log2(final_size)) + 1
@@ -23,6 +27,9 @@ def generate_heatmap(coordinates, title, filename):
     padding = grid_scale
     if 'local' in title_information[1]:
         padding = 4 # scaling to 8
+    elif 'Ryzen' in device_name:
+        contention = 5
+        padding = 5
     data_array = np.zeros((padding, contention))
 
     # Assign values to the data array based on coordinates
@@ -44,11 +51,22 @@ def generate_heatmap(coordinates, title, filename):
     fig, ax = plt.subplots(figsize=(fig_x, fig_y), dpi=300)
 
     # Create the heatmap
-    heatmap = ax.imshow(data_array, cmap='viridis', vmin=data_min, vmax=data_max)
+    cmap = 'gray'
+    if "Ryzen" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'darkorange', 'white'])
+    elif "AMD" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'red', 'white'])
+    elif "NVIDIA" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'lawngreen', 'white'])
+    elif "Intel" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'deepskyblue', 'white'])
+    elif "Apple" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'lightsteelblue', 'white'])
+    heatmap = ax.imshow(data_array, cmap=cmap, vmin=data_min, vmax=data_max)
 
     # Set appropriate axis labels
-    plt.xlabel("Contention", fontsize=16, labelpad=16)
-    plt.ylabel("Padding", fontsize=16, labelpad=0)
+    plt.xlabel("Contention", fontsize=20, labelpad=10)
+    plt.ylabel("Padding", fontsize=20, labelpad=-6)
 
     #  # Set the tick locations and labels for the x-axis
     x_ticks = [2 ** i for i in range(contention)]
@@ -93,12 +111,15 @@ def generate_heatmap(coordinates, title, filename):
     elif 'cas' in description[1]:
        tmp += ": atomic_compare_exchange"
     else:
-        tmp += description[1][description[1].find(':'):]
+        tmp += " " + description[1][description[1].find(':'):]
     
     # Removing underscores from operation because TeX font included in Matplotlib doesn't have that character
     tmp = tmp.replace("_", " ")
 
-    plt.title(description[0] + "\n" + tmp + "\nWorkgroups: (" + workgroup_information[0] + ", 1) x " + workgroup_information[1], fontsize=20)
+    if 'Ryzen' not in device_name:
+        plt.title(f'{description[0]}\n{tmp}\nWorkgroups: ({workgroup_information[0]}, 1) x {workgroup_information[1]}', fontsize=20)
+    else:
+        plt.title(f'{description[0]}\n{tmp}\nLogical Processors: 16', fontsize=20)
 
     # Add colorbar
     data_step = math.floor((data_max - data_min) / 7)
@@ -106,10 +127,10 @@ def generate_heatmap(coordinates, title, filename):
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.2)
     cbar = plt.colorbar(heatmap, cax=cax, ticks=cbar_ticks)
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=18)
+    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=20)
     cbar.ax.tick_params(labelsize=13)
 
-    save_folder = "heatmaps"
+    save_folder = "graphs"
     os.makedirs(save_folder, exist_ok=True)
 
     # Save the plot in the specified folder
@@ -137,7 +158,7 @@ def extract_coordinates_from_file(filename):
     return coordinates
 
 def main():
-    plt.rcParams["font.serif"] = "cmr10, Computer Modern Serif, DejaVu Serif"
+    plt.rcParams["font.serif"] = "Linux Libertine"
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["axes.formatter.use_mathtext"] = True
     plt.rcParams["mathtext.fontset"] = "cm"
