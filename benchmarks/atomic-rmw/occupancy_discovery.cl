@@ -1,6 +1,6 @@
 #define PARTICIPATING 1
 #define NON_PARTICIPATING 0
-#define LOCAL_MEM_SIZE 1024
+
 
 // Ticket lock 
 static void lock(__global atomic_uint* next_ticket, __global atomic_uint* now_serving) {
@@ -49,7 +49,7 @@ __kernel void occupancy_discovery(__global atomic_uint* res,
                                   __global uint *M,
                                   __global atomic_uint *now_serving,
                                   __global atomic_uint *next_ticket) {
-    __local uint local_mem[LOCAL_MEM_SIZE];
+
     // Single represesentative thread from each workgroups runs the occupancy_discovery protocol
     if (get_local_id(0) == 0) {
         get_occupancy(count, poll_open, M, now_serving, next_ticket);
@@ -57,8 +57,6 @@ __kernel void occupancy_discovery(__global atomic_uint* res,
     for (uint i = 0; i < *iters; i++) {
         atomic_fetch_add_explicit(&res[indexes[get_global_id(0)]], 1, memory_order_relaxed);
     }
-    barrier(CLK_LOCAL_MEM_FENCE);
-    // Utilize local memory so it's not compiled away.
-    local_mem[get_global_id(0) % LOCAL_MEM_SIZE]++;
+
     return;
 }

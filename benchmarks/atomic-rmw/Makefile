@@ -8,7 +8,10 @@ $(info OS is $(OS))
 CXXFLAGS += -rpath /usr/local/lib
 endif
 
-all: easyvk $(BENCHMARK)
+all: results easyvk $(BENCHMARK)
+
+results:
+	mkdir -p results
 
 easyvk:
 	make -C ../../easyvk

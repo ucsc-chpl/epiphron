@@ -135,9 +135,13 @@ def generate_heatmap(coordinates, title, filename):
 
     # Save the plot in the specified folder
     savedfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
-
     print(f"Saving '{savedfilename}'...")
     plt.savefig(savedfilename, format='svg', bbox_inches='tight')
+
+    savedfilename_png = os.path.join(save_folder, filename.removesuffix(".txt") + ".png")
+    print(f"Saving '{savedfilename_png}'...")
+    plt.savefig(savedfilename_png, format='png', bbox_inches='tight')
+
 
     plt.close()
 
@@ -147,7 +151,7 @@ def extract_coordinates_from_file(filename):
 
     with open("results/" + filename, 'r') as file:
         for line in file:
-            if re.match(r"\(\d+, \d+, \d+.\d+\)", line) or "inf" in line:
+            if re.match(r"\(\d+, \d+, \d+.\d+\)", line):
                 parts = line.strip("()\n").split(", ")
                 x = int(parts[0])
                 y = int(parts[1])
@@ -158,7 +162,7 @@ def extract_coordinates_from_file(filename):
     return coordinates
 
 def main():
-    plt.rcParams["font.serif"] = "Linux Libertine"
+    plt.rcParams["font.serif"] = ["Linux Libertine", "DejaVu Serif"]
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["axes.formatter.use_mathtext"] = True
     plt.rcParams["mathtext.fontset"] = "cm"

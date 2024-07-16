@@ -139,7 +139,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             out_buf.teardown();
 
             loading_counter++;
-            if (test_name == "local_atomic_fa_relaxed") {
+            if (thread_dist == "random_access") {
+                cout << "\r" << thread_dist << ", " << test_name << ": "
+                << int(((float)loading_counter / (test_values.size())) * 100.0) << "% ";
+            } else if (test_name == "local_atomic_fa_relaxed") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
                 << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "% ";
             } else {
@@ -155,7 +158,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 }
 
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws, uint32_t rmw_iters) {  
-    uint32_t test_iters = 64;
+    uint32_t test_iters = 16;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16, rmw_iters);
     cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
