@@ -1,6 +1,6 @@
 heatmaps/
 graphs/
-results/
+#results/
 
 result.txt
 vk-output.txt
