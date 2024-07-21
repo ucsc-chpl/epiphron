@@ -10,6 +10,12 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters,
             } else {
                 atomic_fetch_max_explicit(&res[index], i + get_global_id(0), memory_order_relaxed);
             }
+        } else {
+            if (mixed[get_global_id(0)]) {
+                atomic_fetch_add_explicit(&res[index], 1, memory_order_relaxed);
+            } else {
+                atomic_fetch_max_explicit(&res[index], i + get_global_id(0), memory_order_relaxed);
+            }
         }
     }
 }

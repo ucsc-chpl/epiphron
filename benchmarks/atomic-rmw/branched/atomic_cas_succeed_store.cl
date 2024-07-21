@@ -9,6 +9,11 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters,
             while (!atomic_compare_exchange_strong_explicit(&res[index], &expected, expected + 1, memory_order_relaxed, memory_order_relaxed)) {
                 expected = atomic_load_explicit(&res[index], memory_order_relaxed);
             }
+        } else {
+            uint expected = atomic_load_explicit(&res[index], memory_order_relaxed);
+            while (!atomic_compare_exchange_strong_explicit(&res[index], &expected, expected + 1, memory_order_relaxed, memory_order_relaxed)) {
+                expected = atomic_load_explicit(&res[index], memory_order_relaxed);
+            }
         }
     }
 }

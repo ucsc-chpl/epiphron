@@ -7,6 +7,8 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters,
     for (uint i = 0; i < *iters; i++) {
         if (branch[get_global_id(0)]) {
             atomic_fetch_min_explicit(&res[index], (*iters) - i, memory_order_relaxed);
+        } else {
+            atomic_fetch_min_explicit(&res[index], (*iters) - i, memory_order_relaxed);
         }
     }
 }

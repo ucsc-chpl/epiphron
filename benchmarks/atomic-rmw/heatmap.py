@@ -156,7 +156,7 @@ def extract_coordinates_from_file(filename):
 
     with open("results/" + filename, 'r') as file:
         for line in file:
-            if re.match(r"\(\d+, \d+, \d+.\d+\)", line):
+            if re.match(r"\(\d+, \d+, [\d.eE+-]+\)", line):
                 parts = line.strip("()\n").split(", ")
                 x = int(parts[0])
                 y = int(parts[1])

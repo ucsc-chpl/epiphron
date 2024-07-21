@@ -17,10 +17,7 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
             uint32_t observed_output = resultBuf.load<uint32_t>(access);
             uint32_t expected_output = rmw_iters * test_iters * contention;
             if (observed_output != expected_output) {
-                 if (thread_dist == "branched" && (observed_output == 0 || observed_output == expected_output/2)) {
-                    continue;
-                 }
-                 else error_count++;
+                error_count++;
             }
     }
     }

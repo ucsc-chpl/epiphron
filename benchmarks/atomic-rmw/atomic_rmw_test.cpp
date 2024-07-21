@@ -61,20 +61,14 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             Buffer result_buf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
 
 
-            Buffer contention_buf = Buffer(device, 1, sizeof(uint32_t));
-            contention_buf.store<uint32_t>(0, contention);
-
-            Buffer padding_buf = Buffer(device, 1, sizeof(uint32_t));
-            padding_buf.store<uint32_t>(0, padding);
+            Buffer random_access_buf = Buffer(device, 1, sizeof(uint32_t));
+            random_access_buf.store<uint32_t>(0, contention);
 
             Buffer rmw_iters_buf = Buffer(device, 1, sizeof(uint32_t));
-        
-
-            Buffer local_buf = Buffer(device, 1, sizeof(uint32_t));
-            local_buf.store<uint32_t>(0, (workgroup_size * padding) / contention);
 
             Buffer out_buf = Buffer(device, global_work_size, sizeof(uint32_t));
             Buffer strat_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
+            Buffer local_strat_buf = Buffer(device, workgroup_size, sizeof(uint32_t)); 
             Buffer branch_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
             Buffer mixed_buf = Buffer(device, global_work_size, sizeof(uint32_t));
 
@@ -95,6 +89,17 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                     strat_buf.store<uint32_t>(i, distribution(gen));
                 }
             }
+            for (int i = 0; i < workgroup_size; i += 1) {
+                if (thread_dist == "branched") {    
+                    local_strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                } else if (thread_dist == "cross_warp") {
+                    local_strat_buf.store<uint32_t>(i, (i * padding) % ((workgroup_size * padding) / contention));
+                } else if (thread_dist == "contiguous_access") {
+                    local_strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                } else if (thread_dist == "random_access") {
+                    local_strat_buf.store<uint32_t>(i, distribution(gen));
+                }
+            }
             uint32_t rmw_iters = 128;
             while(1) {
                 result_buf.clear();
@@ -102,13 +107,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                 vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
 
                 if (thread_dist == "branched") buffers.emplace_back(branch_buf);
-                else if (thread_dist == "random_access") buffers.emplace_back(contention_buf);
+                else if (thread_dist == "random_access") buffers.emplace_back(random_access_buf);
                 
                 if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(out_buf);
-                else if (test_name == "local_atomic_fa_relaxed" && thread_dist == "cross_warp") {
-                    buffers.emplace_back(padding_buf);
-                    buffers.emplace_back(local_buf);
-                }
+                else if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
                 else if (test_name == "mixed_operations") buffers.emplace_back(mixed_buf);
 
                 Program rmw_program = Program(device, spv_code, buffers);
@@ -123,7 +125,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                     total_rate += ((static_cast<float>(rmw_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
                 }
                 rmw_program.teardown();
-                if ((total_duration/test_iters) > 500000.0) {
+                if ((total_duration/test_iters) > 1000000.0) {
                     benchmark_data << total_rate/test_iters << ")" << endl;
                     break;
                 }
@@ -131,12 +133,11 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             }
 
             result_buf.teardown();
-            contention_buf.teardown();
+            random_access_buf.teardown();
             rmw_iters_buf.teardown();
             branch_buf.teardown();
             mixed_buf.teardown();
-            padding_buf.teardown();
-            local_buf.teardown();
+            local_strat_buf.teardown();
             strat_buf.teardown();
             out_buf.teardown();
 
@@ -160,7 +161,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 }
 
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
-    uint32_t test_iters = 16;
+    uint32_t test_iters = 3;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16, 1024);
     cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;

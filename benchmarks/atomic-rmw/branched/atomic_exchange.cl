@@ -7,6 +7,8 @@ __kernel void rmw_test( __global atomic_uint* res, global uint* iters,
     for (uint i = 0; i < *iters; i++) {
         if (branch[get_global_id(0)]) {
             atomic_exchange_explicit(&res[index], new_val, memory_order_relaxed);
+        } else {
+            atomic_exchange_explicit(&res[index], new_val, memory_order_relaxed);
         }
     }
 }
