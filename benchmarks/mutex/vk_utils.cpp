@@ -8,25 +8,6 @@ using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
 
-// Validated correctness of thread access pattern results
-uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t test_iters, uint32_t contention, uint32_t padding, uint32_t size, string thread_dist, string test_name) {
-   
-    uint32_t error_count = 0;
-    if (test_name == "atomic_fa_relaxed" && thread_dist != "random_access") {
-        for (int access = 0; access < size; access += padding) {
-            uint32_t observed_output = resultBuf.load<uint32_t>(access);
-            uint32_t expected_output = rmw_iters * test_iters * contention;
-            if (observed_output != expected_output) {
-                 if (thread_dist == "branched" && (observed_output == 0 || observed_output == expected_output/2)) {
-                    continue;
-                 }
-                 else error_count++;
-            }
-    }
-    }
-    return error_count;
-}
-
 uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters) {
         int maxOccupancyBound = -1;
         for (int i = 0; i < test_iters; i++) {

@@ -1,0 +1,7 @@
+graphs/
+results/
+
+result.txt
+vk-output.txt
+*.cinit
+*.run

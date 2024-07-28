@@ -8,8 +8,10 @@ $(info OS is $(OS))
 CXXFLAGS += -rpath /usr/local/lib
 endif
 
-all: easyvk $(BENCHMARK)
+all: results easyvk $(BENCHMARK)
 
+results:
+	mkdir -p results
 
 easyvk:
 	make -C ../../easyvk
@@ -18,7 +20,7 @@ $(BENCHMARK): $(SOURCES) $(CINITS)
 	$(CXX) $(CXXFLAGS) -I../../easyvk/src -I. ../../easyvk/build/easyvk.o $(SOURCES) -lvulkan -o $(BENCHMARK).run
 
 android: easyvk mutex_test
-	/home/gdhillon/Research/android-ndk-r26/ndk-build APP_BUILD_SCRIPT=./Android.mk  NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk NDK_LIBS_OUT=./build/android/libs NDK_OUT=./build/android/obj
+	ndk-build APP_BUILD_SCRIPT=./Android.mk  NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk NDK_LIBS_OUT=./build/android/libs NDK_OUT=./build/android/obj
 
 %.spv: %.cl
 	clspv -cl-std=CL2.0 -inline-entry-points $< -o $@

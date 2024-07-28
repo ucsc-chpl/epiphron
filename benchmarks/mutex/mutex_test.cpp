@@ -18,25 +18,8 @@ using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
 
-
-extern "C" float mutex_benchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t mutex_iters, uint32_t test_iters, vector<uint32_t> spv_code, vector<Buffer> buffers) {
-    
-    Program mutexProgram = Program(device, spv_code, buffers);
-    mutexProgram.setWorkgroups(workgroups);
-    mutexProgram.setWorkgroupSize(workgroup_size);
-    mutexProgram.initialize("mutex_test");
-    float rate = 0.0;
-    for (int i = 1; i <= test_iters; i++) {
-        auto kernelTime = mutexProgram.runWithDispatchTiming();
-        rate += (float(mutex_iters * workgroup_size * workgroups) / float((kernelTime / (double) 1000.0))); 
-    }
-    rate /= float(test_iters);
-    mutexProgram.teardown();
-    return rate;
-}
-
-extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
-                        uint32_t mutex_iters, vector<uint32_t> spv_code, string test_name) {
+extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, 
+                                uint32_t test_iters, vector<uint32_t> spv_code, string test_name) {
     
     ofstream benchmarkData; 
     benchmarkData.open(string("results/") + device.properties.deviceName + "_" + test_name + ".txt"); 
@@ -53,10 +36,8 @@ extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups,
         test_values.push_back(i);  
     }
 
-    int errors = 0;
     for (uint32_t number_atomics : test_values) {
         
-        float observed_rate = 0.0;
         benchmarkData << "(" + to_string(number_atomics) + ", ";
 
         Buffer lockBuf = Buffer(device, number_atomics, sizeof(uint32_t)); 
@@ -66,7 +47,6 @@ extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups,
         resultBuf.clear();
 
         Buffer mutexItersBuf = Buffer(device, 1, sizeof(uint32_t));
-        mutexItersBuf.store<uint32_t>(0, mutex_iters);
 
         random_device rd;
         mt19937 gen(rd()); 
@@ -85,18 +65,38 @@ extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups,
         Buffer backoffBuf = Buffer(device, (workgroup_size * workgroups) * 32, sizeof(unsigned char));
         backoffBuf.clear();
 
+        uint32_t mutex_iters = 128;
+        while(1) {
+            resultBuf.clear();
+            mutexItersBuf.store<uint32_t>(0, mutex_iters);
+            vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, indexBuf, sizeBuf};
+            if (test_name == "ticket_lock") {
+                buffers.emplace_back(ticketBuf); 
+            } else if (test_name == "cas_lock_backoff") {
+                buffers.emplace_back(backoffBuf); 
+            } else if (test_name == "ticket_lock_backoff") {
+                buffers.emplace_back(ticketBuf);
+                buffers.emplace_back(backoffBuf); 
+            }
+            Program mutexProgram = Program(device, spv_code, buffers);
+            mutexProgram.setWorkgroups(workgroups);
+            mutexProgram.setWorkgroupSize(workgroup_size);
+            mutexProgram.initialize("mutex_test");
+            float total_rate = 0.0;
+            float total_duration = 0.0;
+            for (int i = 1; i <= test_iters; i++) {
+                auto kernel_time = mutexProgram.runWithDispatchTiming();
+                total_duration += (kernel_time / (double) 1000.0);
+                total_rate += ((static_cast<float>(mutex_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
+            }
+            mutexProgram.teardown();
+            if ((total_duration/test_iters) > 1000000.0) {
+                benchmarkData << total_rate/test_iters << ")" << endl;
+                break;
+            }
+            mutex_iters *= 2;
+        }   
         
-        vector<Buffer> buffers = {lockBuf, resultBuf, mutexItersBuf, indexBuf, sizeBuf};
-        if (test_name == "ticket_lock") {
-            buffers.emplace_back(ticketBuf); 
-        } else if (test_name == "cas_lock_backoff") {
-            buffers.emplace_back(backoffBuf); 
-        } else if (test_name == "ticket_lock_backoff") {
-            buffers.emplace_back(ticketBuf);
-            buffers.emplace_back(backoffBuf); 
-        }
-        observed_rate = mutex_benchmark(device, workgroups, workgroup_size, mutex_iters, test_iters, spv_code, buffers);
-
         lockBuf.teardown();
         resultBuf.teardown();
         ticketBuf.teardown();
@@ -104,19 +104,18 @@ extern "C" void mutex_microbenchmark(easyvk::Device device, uint32_t workgroups,
         mutexItersBuf.teardown();
         indexBuf.teardown();
         sizeBuf.teardown();
-        benchmarkData << to_string(observed_rate) + ")" << endl;
     }
     benchmarkData.close();
     return;
 }
 
 extern "C" void mutex_benchmark_suite(easyvk::Device device, const vector<string> &mutexes) {
-    uint32_t test_iters = 64, mutex_iters = 1024;
+    uint32_t test_iters = 3;
     uint32_t workgroup_size = 1;
-    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16);
+    uint32_t workgroups = occupancy_discovery(device, device.properties.limits.maxComputeWorkGroupInvocations, 256, get_spv_code("occupancy_discovery.cinit"), 16);
 
     for (const string& mutex : mutexes) {
-        mutex_microbenchmark(device, 46, workgroup_size, test_iters, mutex_iters, get_spv_code(mutex + ".cinit"), mutex);
+        mutex_microbenchmark(device, workgroups, workgroup_size, test_iters, get_spv_code(mutex + ".cinit"), mutex);
     }
     return;
 }
@@ -133,7 +132,7 @@ int main() {
         device.teardown();
     }
     vector<string> mutex_options = {
-        "cas_lock_relaxed_peeking",
+        "cas_lock_peeking",
         "cas_lock",
         //"cas_lock_backoff",
         //"ticket_lock",
