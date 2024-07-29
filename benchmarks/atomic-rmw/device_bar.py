@@ -1,4 +1,4 @@
-import re, os
+import re, os, math
 import scienceplots
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -7,8 +7,19 @@ import numpy as np
 
 devices = ['AMD', 'NVIDIA', 'Intel', 'Apple']
 x = np.arange(len(devices))
-mins = [113.197861, 109.545067, 300.889435, 1064.501831]
-maxs = [36149.195312, 2971.202148, 14442.958008, 7123.667969]
+files = ['amd-contiguous-fetchadd.txt', 'nvidia-contiguous-fetchadd.txt', 'intel-contiguous-fetchadd.txt', 'apple-contiguous-fetchadd.txt']
+mins = []
+maxs = []
+for f in files:
+    lines = []
+    with open(os.path.join('results', f)) as fp:
+        lines = fp.readlines()
+    lines = lines[1:] # skip first info line
+    lines = [re.search(r'\(.*, .*, (.*)\)\n?', line).group(1) for line in lines] # extract rates from lines
+    rates = [float(l) for l in lines]
+    mins.append(min(rates))
+    maxs.append(max(rates))
+
 diffs = [maxs[i] / mins[i] for i in range(len(devices))]
 
 plt.style.use('science')
@@ -32,7 +43,7 @@ plt.xticks(x, devices)
 plt.xlabel('Devices')
 plt.ylabel('Atomic Operations per Microsecond')
 plt.yscale('log')
-plt.ylim(1, max(maxs) + 45000)
+plt.ylim(1, (math.e ** 1.05) * max(maxs))
 
 rects = ax.patches
 labels = (['Min'] * len(devices)) + (['Max'] * len(devices))
@@ -40,7 +51,7 @@ for rect, label in zip(rects, labels):
     height = rect.get_height()
     ax.text(rect.get_x() + rect.get_width() / 2, height, label, ha='center', va='bottom')
 
-#plt.savefig('graphs/throughput-diffs.png', bbox_inches='tight')
+plt.savefig('graphs/throughput-diffs.png', bbox_inches='tight')
 plt.savefig('graphs/throughput-diffs.svg', format='svg', bbox_inches='tight')
 
 fig, ax = plt.subplots(figsize=(4, 4))
@@ -49,7 +60,7 @@ plt.xlabel('Devices')
 plt.ylabel('Maximum throughput falloff')
 plt.bar(x, diffs, 0.7, color=colors, edgecolor='black')
 plt.yscale('log')
-plt.ylim(1, max(diffs) + 200)
+plt.ylim(1, (math.e ** 1.05) * max(diffs))
 
 rects = ax.patches
 labels = [f'{int(diffs[i])}x' for i in range(len(rects))]
@@ -57,7 +68,7 @@ for rect, label in zip(rects, labels):
     height = rect.get_height()
     ax.text(rect.get_x() + rect.get_width() / 2, height, label, ha='center', va='bottom')
 
-#plt.savefig('graphs/throughput-multipliers.png', bbox_inches='tight')
+plt.savefig('graphs/throughput-multipliers.png', bbox_inches='tight')
 plt.savefig('graphs/throughput-multipliers.svg', format='svg', bbox_inches='tight')
 
 plt.show()

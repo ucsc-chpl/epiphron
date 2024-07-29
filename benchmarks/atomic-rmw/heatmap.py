@@ -88,7 +88,7 @@ def generate_heatmap(coordinates, title, filename):
             pass
             # temporarily disabling heatmap labels
             #text = ax.text(j, i, int(data_array[i][j]),
-            #   ha="center", va="center", color="w", fontsize=7, path_effects=[pe.withStroke(linewidth=0.5, foreground="black")], weight='bold')
+            #   ha="center", va="center", color="w", fontsize=16, path_effects=[pe.withStroke(linewidth=3.0, foreground="black")], weight='bold')
 
 
     ax.invert_yaxis()  # Invert the y-axis
