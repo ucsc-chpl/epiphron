@@ -74,9 +74,13 @@ def main():
         save_folder = "graphs"
         os.makedirs(save_folder, exist_ok=True)
 
-        savedfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
-        print(f"Saving '{savedfilename}'...")
-        plt.savefig(savedfilename, format='svg', bbox_inches='tight')
+        svgfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
+        pngfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".png")
+        
+        print(f"Saving '{svgfilename}'...")
+        plt.savefig(svgfilename, format='svg', bbox_inches='tight')
+        print(f"Saving '{pngfilename}'...")
+        plt.savefig(pngfilename, format='png', bbox_inches='tight', dpi=300)
 
 if __name__ == "__main__":
     main()
