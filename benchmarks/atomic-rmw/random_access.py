@@ -12,6 +12,10 @@ def vendor_name(title):
         return "NVIDIA"
     elif "Apple" in title:
         return "Apple"
+    elif "Samsung" in title:
+        return "Samsung"
+    elif "Mali" in title:
+        return "ARM"
 
 def extract_coordinates(filename):
     coordinates = []
@@ -39,7 +43,7 @@ def main():
     plt.rcParams['ytick.minor.size'] = 0
     plt.rcParams['ytick.minor.width'] = 0
 
-    plt.rcParams["font.serif"] = "Linux Libertine"
+    plt.rcParams["font.serif"] = ["Linux Libertine", "DejaVu Serif"]
     plt.rcParams["font.family"] = "serif"
     plt.rcParams["axes.formatter.use_mathtext"] = True
     plt.rcParams["mathtext.fontset"] = "cm"
@@ -52,7 +56,7 @@ def main():
         coordinates = extract_coordinates(os.path.join(read_folder, filename))
         titles = [coord[2] for coord in coordinates]
         # Using scienceplots default colors, but in order of AMD/NVIDIA/Intel/Apple/Samsung/ARM
-        colors = ['#FF2C00', '#00B945', '#0C5DA5', '#FF9500', '#845B97', '#845B97']
+        colors = ['#FF2C00', '#00B945', '#78DBF9', '#CECECE', '#1515F4', '#0F85E6']
         lines_data = {}
 
         titles = f7(titles)
@@ -74,8 +78,7 @@ def main():
         plt.xscale('log')
         plt.xticks(x_ticks, x_labels)
 
-        if len(lines_data) > 1:
-            plt.legend()
+        plt.legend()
         plt.xlabel('# of Atomics')
         plt.ylabel('Relative atomic operation speedup')
 
