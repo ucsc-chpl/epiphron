@@ -14,7 +14,8 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
     uint32_t error_count = 0;
     if (test_name == "atomic_fa_relaxed" && thread_dist != "random_access") {
         for (int access = 0; access < size; access += padding) {
-            uint32_t observed_output = resultBuf.load<uint32_t>(access);
+            uint32_t observed_output;
+            resultBuf.load(&observed_output, sizeof(uint32_t));
             uint32_t expected_output = rmw_iters * test_iters * contention;
             if (observed_output != expected_output) {
                 error_count++;
@@ -25,23 +26,27 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
 }
 
 uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters, uint32_t rmw_iters) {
-        int maxOccupancyBound = -1;
+        int maxOccupancyBound = 0;
         for (int i = 0; i < test_iters; i++) {
-            Buffer result_buf =  Buffer(device, workgroup_size * workgroups, sizeof(uint32_t));
+            Buffer result_buf = Buffer(device, workgroup_size * workgroups * sizeof(uint32_t), true);
             result_buf.clear();
-            Buffer rmw_iters_buf = Buffer(device, 1, sizeof(uint32_t));
-            rmw_iters_buf.store<uint32_t>(0, rmw_iters);
-            Buffer strat_buf = Buffer(device, workgroup_size * workgroups, sizeof(uint32_t)); 
-            for (int i = 0; i < workgroup_size * workgroups; i += 1) strat_buf.store<uint32_t>(i, i);
-            Buffer count_buf = Buffer(device, 1, sizeof(uint32_t));
-            count_buf.store<uint32_t>(0, 0);
-            Buffer poll_open_buf = Buffer(device, 1, sizeof(uint32_t));
-            poll_open_buf.store<uint32_t>(0, 1); // Poll is initially open.
-            Buffer M_buf = Buffer(device, workgroups, sizeof(uint32_t));
-            Buffer now_serving_buf = Buffer(device, 1, sizeof(uint32_t));
-            now_serving_buf.store<uint32_t>(0, 0);
-            Buffer next_ticket_buf = Buffer(device, 1, sizeof(uint32_t));
-            next_ticket_buf.store<uint32_t>(0, 0);
+            Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
+            rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
+            Buffer strat_buf = Buffer(device, workgroup_size * workgroups * sizeof(uint32_t));
+            vector<uint32_t> strat_buf_host; 
+            for (int i = 0; i < workgroup_size * workgroups; i += 1) strat_buf_host.push_back(i);
+            strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
+            Buffer count_buf = Buffer(device, sizeof(uint32_t), true);
+            uint32_t zero = 0; // need to figure out the right way to pass an rvalue to a void* but i'm lazy
+            count_buf.store(&zero, sizeof(uint32_t));
+            Buffer poll_open_buf = Buffer(device, sizeof(uint32_t), true);
+            uint32_t poll_init_val = 1;
+            poll_open_buf.store(&poll_init_val, sizeof(uint32_t)); // Poll is initially open.
+            Buffer M_buf = Buffer(device, workgroups * sizeof(uint32_t), true);
+            Buffer now_serving_buf = Buffer(device, sizeof(uint32_t));
+            now_serving_buf.store(&zero, sizeof(uint32_t));
+            Buffer next_ticket_buf = Buffer(device, sizeof(uint32_t), true);
+            next_ticket_buf.store(&zero, sizeof(uint32_t));
             vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf,
                                                         count_buf, 
                                                         poll_open_buf,
@@ -53,8 +58,10 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             program.setWorkgroupSize(workgroup_size);
             program.initialize("occupancy_discovery");
             program.run();
-            if ((int) count_buf.load<uint32_t>(0) > maxOccupancyBound) {
-                maxOccupancyBound = count_buf.load<uint32_t>(0);
+            uint32_t measured;
+            count_buf.load(&measured, sizeof(uint32_t));
+            if (measured > maxOccupancyBound) {
+                maxOccupancyBound = measured;
             }
             program.teardown();
             result_buf.teardown();

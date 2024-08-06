@@ -9,7 +9,7 @@
 #define USE_VALIDATION_LAYERS false
 #define APPNAME "GPURmwTests"
 #else
-#define USE_VALIDATION_LAYERS true
+#define USE_VALIDATION_LAYERS false
 #endif
 
 using namespace std;
@@ -54,56 +54,64 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 
             benchmark_data << "(" << contention << ", " << padding << ", ";
 
-
             uint32_t global_work_size = workgroup_size * workgroups;
             uint32_t size = ((global_work_size) * padding) / contention;
 
-            Buffer result_buf = Buffer(device, thread_dist == "random_access" ? contention : size, sizeof(uint32_t));
+            Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? contention : size) * sizeof(uint32_t), true);
 
+            Buffer random_access_buf = Buffer(device, sizeof(uint32_t), true);
+            random_access_buf.store(&contention, sizeof(uint32_t));
 
-            Buffer random_access_buf = Buffer(device, 1, sizeof(uint32_t));
-            random_access_buf.store<uint32_t>(0, contention);
+            Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
 
-            Buffer rmw_iters_buf = Buffer(device, 1, sizeof(uint32_t));
-
-            Buffer out_buf = Buffer(device, global_work_size, sizeof(uint32_t));
-            Buffer strat_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
-            Buffer local_strat_buf = Buffer(device, workgroup_size, sizeof(uint32_t)); 
-            Buffer branch_buf = Buffer(device, global_work_size, sizeof(uint32_t)); 
-            Buffer mixed_buf = Buffer(device, global_work_size, sizeof(uint32_t));
+            Buffer out_buf = Buffer(device, global_work_size * sizeof(uint32_t), true);
+            Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
+            Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
+            Buffer branch_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
+            Buffer mixed_buf = Buffer(device, global_work_size * sizeof(uint32_t), true);
 
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, contention-1);
 
-            for (int i = 0; i < global_work_size; i += 1) {
-                mixed_buf.store<uint32_t>(i, (i % 32) < 16); // Thread instruction masking
+            vector<uint32_t> mixed_buf_host, branch_buf_host, strat_buf_host, local_strat_buf_host; 
+            for (int i = 0; i < global_work_size; i++) {
+                mixed_buf_host.push_back((i % 32) < 16); // Thread instruction masking
                 if (thread_dist == "branched") {    
-                    branch_buf.store<uint32_t>(i, (i % 2));
-                    strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                    branch_buf_host.push_back((i % 2));
+                    strat_buf_host.push_back((i / contention) * padding);
                 } else if (thread_dist == "cross_warp") {
-                    strat_buf.store<uint32_t>(i, (i * padding) % size);
+                    strat_buf_host.push_back((i * padding) % size);
                 } else if (thread_dist == "contiguous_access") {
-                    strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                    strat_buf_host.push_back((i / contention) * padding);
                 } else if (thread_dist == "random_access") {
-                    strat_buf.store<uint32_t>(i, distribution(gen));
+                    strat_buf_host.push_back(distribution(gen));
                 }
             }
-            for (int i = 0; i < workgroup_size; i += 1) {
+            for (int i = 0; i < workgroup_size; i++) {
                 if (thread_dist == "branched") {    
-                    local_strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                    local_strat_buf_host.push_back((i / contention) * padding);
                 } else if (thread_dist == "cross_warp") {
-                    local_strat_buf.store<uint32_t>(i, (i * padding) % ((workgroup_size * padding) / contention));
+                    local_strat_buf_host.push_back((i * padding) % ((workgroup_size * padding) / contention));
                 } else if (thread_dist == "contiguous_access") {
-                    local_strat_buf.store<uint32_t>(i, (i / contention) * padding);
+                    local_strat_buf_host.push_back((i / contention) * padding);
                 } else if (thread_dist == "random_access") {
-                    local_strat_buf.store<uint32_t>(i, distribution(gen));
+                    local_strat_buf_host.push_back(distribution(gen));
                 }
             }
+            if (mixed_buf_host.size() > 0)
+                mixed_buf.store(mixed_buf_host.data(), mixed_buf_host.size() * sizeof(uint32_t));
+            if (branch_buf_host.size() > 0)
+                branch_buf.store(branch_buf_host.data(), branch_buf_host.size() * sizeof(uint32_t));
+            if (strat_buf_host.size() > 0)
+                strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
+            if (local_strat_buf_host.size() > 0)
+                local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+
             uint32_t rmw_iters = 128;
             while(1) {
                 result_buf.clear();
-                rmw_iters_buf.store<uint32_t>(0, rmw_iters);
+                rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
                 vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
 
                 if (thread_dist == "branched") buffers.emplace_back(branch_buf);
