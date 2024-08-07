@@ -1,0 +1,9 @@
+heatmaps/
+graphs/
+#results/
+
+result.txt
+vk-output.txt
+**/*.cinit
+*.run
+*.exe
