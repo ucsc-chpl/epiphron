@@ -1,5 +1,5 @@
 CXXFLAGS = -std=c++17
-CINITS = $(patsubst %.cl,%.cinit,$(wildcard branched/*.cl contiguous_access/*.cl random_access/*.cl cross_warp/*.cl *.cl))
+CINITS = $(patsubst %.cl,%.cinit,$(wildcard branched/*.cl NVIDIA_instance_access/*.cl contiguous_access/*.cl random_access/*.cl cross_warp/*.cl *.cl))
 BENCHMARK = atomic_rmw_test
 SOURCES = $(wildcard *cpp)
 
@@ -39,6 +39,8 @@ android: easyvk atomic_rmw_test
 clean:
 	rm -r branched/*.cinit \
 	branched/*.spv \
+	NVIDIA_instance_access/*.cinit \
+	NVIDIA_instance_access/*.spv \
 	contiguous_access/*.cinit \
 	contiguous_access/*.spv \
 	random_access/*.cinit \

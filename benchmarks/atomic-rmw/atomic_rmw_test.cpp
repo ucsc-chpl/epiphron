@@ -44,12 +44,13 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     list<uint32_t> contention_values;
     list<uint32_t> padding_values;
     if (thread_dist == "NVIDIA_instance_access") {
-        // In this case, this array is referred to as the thread count
+        // In this case, the 'contention' array is referred to as the thread count
         // Testing one value for now
         contention_values.push_back(thread_count);
-        for (uint32_t i = 1; i <= padding_size; i *= 2) {
+        for (uint32_t i = 1; i < padding_size; i *= 2) {
             padding_values.push_back(i * 256);
         }
+        padding_values.push_back(padding_size * 256);
     } else {
         contention_values = test_values;
         padding_values = test_values;
@@ -57,10 +58,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 
 
     uint32_t loading_counter = 0;
-    for (uint32_t contention : test_values) {
+    for (uint32_t contention : contention_values) {
 
         int random_access_status = 0;
-        for (uint32_t padding : test_values) {
+        for (uint32_t padding : padding_values) {
             
             if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
             
@@ -155,7 +156,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                     total_rate += ((static_cast<float>(rmw_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
                 }
                 rmw_program.teardown();
-                if ((total_duration/test_iters) > 500000.0) {
+                if ((total_duration/test_iters) > 1000000.0) {
                     benchmark_data << total_rate/test_iters << ")" << endl;
                     break;
                 }
@@ -172,7 +173,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             out_buf.teardown();
 
             loading_counter++;
-            if (thread_dist == "random_access") {
+            if (thread_dist == "NVIDIA_instance_access") {
+                cout << "\r" << thread_dist << ", " << test_name << ": "
+                << int(((float)loading_counter / (padding_values.size())) * 100.0) << "% ";
+            } else if (thread_dist == "random_access") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
                 << int(((float)loading_counter / (test_values.size())) * 100.0) << "% ";
             } else if (test_name == "local_atomic_fa_relaxed") {
@@ -253,8 +257,8 @@ int main() {
 
     for (const auto& choice : thread_dist_choices) {
         if (thread_dist_options[choice] == "NVIDIA_instance_access") {
-            selected_padding_size = get_params("\nEnter padding size (in KB): ");
-            selected_thread_count = get_params("\nEnter thread count: ");
+            selected_padding_size = get_params("\n(For NVIDIA test) Enter padding size (in KB): ");
+            selected_thread_count = get_params("\n(For NVIDIA test) Enter thread count: ");
         }
         selected_thread_dist.push_back(thread_dist_options[choice]);
     }
