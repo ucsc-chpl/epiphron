@@ -40,19 +40,23 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
         test_values.push_back(i);
     }
     uint32_t loading_counter = 0;
-    for (uint32_t contention : test_values) {
+    for (uint32_t contention : {32, 32 * 2, 32 * 3, 32 * 4, 32 * 5, 32 * 6, 32 * 7, 32 * 8, 32 * 9, 32 * 10, 32 * 11, 32 * 12, 32 * 13,
+                                32 * 14, 32 * 15, 32 * 16}) {
 
         int random_access_status = 0;
-        for (uint32_t padding : test_values) {
-            
+        for (uint32_t padding : {262144 * 2, 262144 * 4, 262144 * 8, 262144 * 16, 262144 * 32, 262144 * 64, 262144 * 128, 262144 * 256,
+                                 262144 * 512, 262144 * 1024, 262144 * 1024 * 2, 262144 * 1024 * 3, 262144 * 1024 * 4, 262144 * 1024 * 5,
+                                 262144 * 1024 * 6, 262144 * 1024 * 7}) {
+            // KB
+            padding /= 1024;
             if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
             
             if  (thread_dist == "random_access") {
                 if (!random_access_status) random_access_status = 1;
                 else continue;
             }
-
-            benchmark_data << "(" << contention << ", " << padding << ", ";
+            // KB
+            benchmark_data << "(" << contention << ", " << (padding*4)/(1024) << ", ";
 
             uint32_t global_work_size = workgroup_size * workgroups;
             uint32_t size = ((global_work_size) * padding) / contention;
@@ -83,7 +87,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                 } else if (thread_dist == "cross_warp") {
                     strat_buf_host.push_back((i * padding) % size);
                 } else if (thread_dist == "contiguous_access") {
-                    strat_buf_host.push_back((i / contention) * padding);
+                    strat_buf_host.push_back(((i / contention) * padding) + (i % contention));
                 } else if (thread_dist == "random_access") {
                     strat_buf_host.push_back(distribution(gen));
                 }
