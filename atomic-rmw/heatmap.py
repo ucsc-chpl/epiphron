@@ -9,6 +9,7 @@ import numpy as np
 def generate_heatmap(coordinates, title, filename):
     # workgroup and title extraction
     title_information = title.split(":", 1)
+    description = title_information[1].split(", ")
     workgroup_information = title_information[0].split(",")
     workgroup_size = int(workgroup_information[0])
     workgroups = int(workgroup_information[1])
@@ -31,11 +32,19 @@ def generate_heatmap(coordinates, title, filename):
     elif 'Ryzen' in device_name:
         contention = 5
         padding = 5
-    data_array = np.zeros((13, 8))
+    data_array = None
+    if "instance" in description[1]:
+        data_array = np.zeros((13, 8))
+    else:
+        data_array = np.zeros((padding, contention))
 
     # Assign values to the data array based on coordinates
     for x, y, value, _ in coordinates:
-        x_index = int((x/32)-1)
+        x_index = None
+        if "instance" in description[1]:
+            x_index = int((x/32)-1)
+        else: 
+            x_index = int(np.log2(x))
         y_index = int(np.log2(y))
         data_array[y_index, x_index] = value
 
@@ -68,18 +77,27 @@ def generate_heatmap(coordinates, title, filename):
     heatmap = ax.imshow(data_array, cmap=cmap, norm=norm)
 
     # Set appropriate axis labels
-    plt.xlabel("Threads", fontsize=20, labelpad=10)
-    plt.ylabel("Padding Size (KB)", fontsize=20, labelpad=6)
+    if "instance" in description[1]:
+        plt.xlabel("Threads", fontsize=20, labelpad=10)
+        plt.ylabel("Padding Size (KB)", fontsize=20, labelpad=6)
+    else: 
+        plt.xlabel("Contention", fontsize=20, labelpad=10)
+        plt.ylabel("Padding", fontsize=20, labelpad=6)
 
-    #  # Set the tick locations and labels for the x-axis
-    x_ticks = [32, 32 * 2, 32 * 3, 32 * 4, 32 * 5, 32 * 6, 32 * 7, 32 * 8]
+
+    x_ticks = [2 ** i for i in range(contention)]
+    y_ticks = [2 ** i for i in range(padding)]
+    font_size = 18
+    if "instance" in description[1]:
+        x_ticks = [32, 32 * 2, 32 * 3, 32 * 4, 32 * 5, 32 * 6, 32 * 7, 32 * 8]
+        y_ticks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+        font_size = 14
+
     ax.set_xticks(np.arange(len(x_ticks)))
-    ax.set_xticklabels(x_ticks, fontsize=14)
+    ax.set_xticklabels(x_ticks, fontsize=font_size)
 
-    #  # Set the tick locations and labels for the y-axis
-    y_ticks = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
     ax.set_yticks(np.arange(len(y_ticks)))
-    ax.set_yticklabels(y_ticks, fontsize=14)
+    ax.set_yticklabels(y_ticks, fontsize=font_size)
 
     # Add text annotations for data points
     # flag check here 
@@ -88,13 +106,11 @@ def generate_heatmap(coordinates, title, filename):
         for j in range(data_array.shape[1]):
             pass
             # temporarily disabling heatmap labels
-            text = ax.text(j, i, int(data_array[i][j]),
-               ha="center", va="center", color="w", fontsize=5, path_effects=[pe.withStroke(linewidth=2, foreground="black")], weight='bold')
+            # text = ax.text(j, i, int(data_array[i][j]),
+            #    ha="center", va="center", color="w", fontsize=5, path_effects=[pe.withStroke(linewidth=2, foreground="black")], weight='bold')
 
 
     ax.invert_yaxis()  # Invert the y-axis
-
-    description = title_information[1].split(", ")
    
     # Thread access pattern
     tmp = ""
