@@ -20,8 +20,7 @@ using easyvk::Program;
 using easyvk::vkDeviceType;
 
 extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
-                                    string thread_dist, vector<uint32_t> spv_code, string test_name, uint32_t padding_size, 
-                                    uint32_t thread_count) {
+                                    string thread_dist, vector<uint32_t> spv_code, string test_name) {
     
     ofstream benchmark_data; 
     benchmark_data.open(string("results/") + device.properties.deviceName + "_" + thread_dist + "_" + test_name + ".txt"); 
@@ -45,13 +44,16 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     list<uint32_t> padding_values;
     if (thread_dist == "NVIDIA_instance_access") {
         // In this case, the 'contention' array is referred to as the thread count
-        // Testing one value for now
-        contention_values.push_back(thread_count);
-        for (uint32_t i = 1; i < padding_size; i *= 2) {
+        // Testing different multiplies of warp size
+        for (uint32_t i = 1; i <= 8; i += 1) {
+            contention_values.push_back(i * 32);
+        }
+        // Testing up-to 4096 KB (4 MB)
+        for (uint32_t i = 1; i <= 4096; i *= 2) {
             padding_values.push_back(i * 256);
         }
-        padding_values.push_back(padding_size * 256);
     } else {
+        // Contention/Padding values for other access patterns
         contention_values = test_values;
         padding_values = test_values;
     }
@@ -175,7 +177,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             loading_counter++;
             if (thread_dist == "NVIDIA_instance_access") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
-                << int(((float)loading_counter / (padding_values.size())) * 100.0) << "% ";
+                << int(((float)loading_counter / (contention_values.size() * padding_values.size())) * 100.0) << "% ";
             } else if (thread_dist == "random_access") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
                 << int(((float)loading_counter / (test_values.size())) * 100.0) << "% ";
@@ -194,8 +196,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     return;
 }
 
-extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws,
-                                    uint32_t padding_size, uint32_t thread_count) {  
+extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
     uint32_t test_iters = 3;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
     uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16, 1024);
@@ -207,10 +208,8 @@ extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> 
                 continue;
             }
             vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
-            if (rmw == "local_atomic_fa_relaxed") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw,
-                                                                     padding_size, thread_count);
-            else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw, 
-                                    padding_size, thread_count);
+            if (rmw == "local_atomic_fa_relaxed") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
+            else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
             cout << endl;
         }
     }
@@ -252,14 +251,8 @@ int main() {
     auto atomic_rmws_choices = select_configurations(atomic_rmw_options, "\nSelect atomic RMWs:");
 
     vector<string> selected_thread_dist, selected_atomic_rmws;
-    uint32_t selected_padding_size = 0;
-    uint32_t selected_thread_count = 0;
 
     for (const auto& choice : thread_dist_choices) {
-        if (thread_dist_options[choice] == "NVIDIA_instance_access") {
-            selected_padding_size = get_params("\n(For NVIDIA test) Enter padding size (in KB): ");
-            selected_thread_count = get_params("\n(For NVIDIA test) Enter thread count: ");
-        }
         selected_thread_dist.push_back(thread_dist_options[choice]);
     }
     for (const auto& choice : atomic_rmws_choices) {
@@ -269,7 +262,7 @@ int main() {
     for (const auto& choice : selected_devices) {
         auto device = easyvk::Device(instance, physicalDevices.at(choice));
         cout << "\nRunning RMW benchmarks on " << device.properties.deviceName << endl;
-        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws, selected_padding_size, selected_thread_count);
+        rmw_benchmark_suite(device, selected_thread_dist, selected_atomic_rmws);
         device.teardown();
     }
     

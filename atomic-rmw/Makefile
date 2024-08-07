@@ -24,7 +24,7 @@ easyvk:
 	make -C ../easyvk 
 
 $(BENCHMARK): $(SOURCES) $(CINITS)
-	$(CXX) $(CXXFLAGS) -L$(VULKAN_SDK)/Lib -I../../easyvk/src -I. ../../easyvk/build/easyvk.o $(SOURCES) -lvulkan -o $(BENCHMARK).$(RUN_EXT)
+	$(CXX) $(CXXFLAGS) -L$(VULKAN_SDK)/Lib -I../easyvk/src -I. ../easyvk/build/easyvk.o $(SOURCES) -lvulkan -o $(BENCHMARK).$(RUN_EXT)
 
 android: easyvk atomic_rmw_test
 	ndk-build APP_BUILD_SCRIPT=./Android.mk  NDK_PROJECT_PATH=. NDK_APPLICATION_MK=./Application.mk NDK_LIBS_OUT=./build/android/libs NDK_OUT=./build/android/obj
