@@ -156,7 +156,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                     total_rate += ((static_cast<float>(rmw_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
                 }
                 rmw_program.teardown();
-                if ((total_duration/test_iters) > 1000000.0) {
+                if ((total_duration/test_iters) > 500000.0) {
                     benchmark_data << total_rate/test_iters << ")" << endl;
                     break;
                 }
