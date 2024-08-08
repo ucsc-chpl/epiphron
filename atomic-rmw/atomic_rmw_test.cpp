@@ -9,7 +9,7 @@
 #define USE_VALIDATION_LAYERS false
 #define APPNAME "GPURmwTests"
 #else
-#define USE_VALIDATION_LAYERS false
+#define USE_VALIDATION_LAYERS true
 #endif
 
 using namespace std;
@@ -76,9 +76,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                 benchmark_data << "(" << contention << ", " << (padding*4)/(1024) << ", ";
             else 
                 benchmark_data << "(" << contention << ", " << padding << ", ";
+            printf("Running (%d, %d)...\n", contention, padding);
 
-            uint32_t global_work_size = workgroup_size * workgroups;
-            uint32_t size = ((global_work_size) * padding) / contention;
+            uint64_t global_work_size = workgroup_size * workgroups;
+            uint64_t size = ((global_work_size) * padding) / contention;
 
             Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? contention : size) * sizeof(uint32_t), true);
 
