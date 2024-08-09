@@ -44,9 +44,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     for (uint32_t contention : test_values) {
 
         int random_access_status = 0;
-        for (uint32_t padding : {262144 * 2, 262144 * 4, 262144 * 8, 262144 * 16, 262144 * 32, 262144 * 64, 262144 * 128, 262144 * 256,
-                                 262144 * 512, 262144 * 1024, 262144 * 1024 * 2, 262144 * 1024 * 3, 262144 * 1024 * 4, 262144 * 1024 * 5,
-                                 262144 * 1024 * 6, 262144 * 1024 * 7}) {
+        for (uint32_t padding : {262144 * 2, 262144 * 4, 262144 * 8, 262144 * 16, 262144 * 32, 262144 * 64}) {
             // KB
             padding /= 1024;
             if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
@@ -58,8 +56,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             // KB
             benchmark_data << "(" << contention << ", " << (padding*4)/(1024) << ", ";
 
-            uint32_t global_work_size = workgroup_size * workgroups;
-            uint32_t size = ((global_work_size) * padding) / contention;
+            uint64_t global_work_size = workgroup_size * workgroups;
+            uint64_t size = ((global_work_size) * static_cast<uint64_t>(padding)) / thread_count;
 
             //Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? contention : size) * sizeof(uint32_t), true);
             Buffer result_buf = Buffer(device, (size) * sizeof(uint32_t), true);
