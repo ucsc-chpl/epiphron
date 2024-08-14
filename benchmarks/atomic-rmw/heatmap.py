@@ -61,7 +61,11 @@ def generate_heatmap(coordinates, title, filename):
     elif "Intel" in device_name:
         cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'deepskyblue', 'white'])
     elif "Apple" in device_name:
-        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'lightsteelblue', 'white'])
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'dimgray', 'white'])
+    elif "Samsung" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'blue', 'white'])
+    elif "Mali" in device_name:
+        cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'royalblue', 'white'])
     
     norm = cl.LogNorm(vmin=data_min, vmax=data_max)
     heatmap = ax.imshow(data_array, cmap=cmap, norm=norm)

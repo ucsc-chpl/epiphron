@@ -8,6 +8,10 @@ using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
 
+#ifdef __ANDROID__
+#define APPNAME "GPURmwTests"
+#endif
+
 // Validated correctness of thread access pattern results
 uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t test_iters, uint32_t contention, uint32_t padding, uint32_t size, string thread_dist, string test_name) {
    
