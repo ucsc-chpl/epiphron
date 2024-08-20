@@ -7,11 +7,9 @@ We've included a Windows version built against MSVC Clang / Vulkan SDK 1.3.290.0
 ```
 cd atomic-rmw
 .\atomic_rmw_test.exe
-```
+``` 
 
 This will take you to a series of menus, which can be navigated by typing numbers and hitting enter to select the device, the specific test, and an atomic operation. For the test we've been discussing, the parameters should be `NVIDIA_instance_access` for the test and `atomic_fa_relaxed` for the operation. 
-
-For the `NVIDIA_instance_access` test, we also have two extra parameters - the padding size (in KB, as we're examining the effects of high padding) and the number of threads to group together.
 
 After entering these parameters, the tests will run, a percentage to complete will be shown, and afterwards the program will exit, and you'll be left with a results file in `results/`.
 

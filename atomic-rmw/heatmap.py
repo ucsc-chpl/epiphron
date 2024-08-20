@@ -73,8 +73,12 @@ def generate_heatmap(coordinates, title, filename):
     elif "Apple" in device_name:
         cmap = cl.LinearSegmentedColormap.from_list('', ['black', 'lightsteelblue', 'white'])
     
-    norm = cl.LogNorm(vmin=data_min, vmax=data_max)
-    heatmap = ax.imshow(data_array, cmap=cmap, norm=norm)
+    heatmap = None
+    if "instance" in description[1]:
+        heatmap = ax.imshow(data_array, cmap=cmap, vmin=data_min, vmax=data_max)
+    else:
+        norm = cl.LogNorm(vmin=data_min, vmax=data_max)
+        heatmap = ax.imshow(data_array, cmap=cmap, norm=norm)
 
     # Set appropriate axis labels
     if "instance" in description[1]:
@@ -142,17 +146,26 @@ def generate_heatmap(coordinates, title, filename):
     else:
         plt.title(f'{description[0]}\n{tmp}\nLogical Processors: 16', fontsize=20)
 
-    # Add colorbar with logarithmic ticks
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes("right", size="5%", pad=0.2)
-    cbar = plt.colorbar(heatmap, cax=cax)
-    cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=20)
-    
-    # Set the colorbar ticks to logarithmic scale
-    cbar_ticks = np.logspace(np.log10(data_min), np.log10(data_max), num=7)
-    cbar.set_ticks(cbar_ticks)
-    cbar.ax.set_yticklabels([f'{int(t):d}' if t >= 1 else f'{t:.1e}' for t in cbar_ticks])
-    cbar.ax.tick_params(labelsize=13)
+    if "instance" in description[1]:
+        data_step = math.floor((data_max - data_min) / 7)
+        cbar_ticks = [math.floor(n) for n in range(data_min, data_max, data_step)]
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.2)
+        cbar = plt.colorbar(heatmap, cax=cax, ticks=cbar_ticks)
+        cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=18)
+        cbar.ax.tick_params(labelsize=13)
+    else:
+        # Add colorbar with logarithmic ticks
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.2)
+        cbar = plt.colorbar(heatmap, cax=cax)
+        cbar.set_label('Atomic Operations per Microsecond', rotation=270, labelpad=24, fontsize=20)
+        
+        # Set the colorbar ticks to logarithmic scale
+        cbar_ticks = np.logspace(np.log10(data_min), np.log10(data_max), num=7)
+        cbar.set_ticks(cbar_ticks)
+        cbar.ax.set_yticklabels([f'{int(t):d}' if t >= 1 else f'{t:.1e}' for t in cbar_ticks])
+        cbar.ax.tick_params(labelsize=13)
 
     save_folder = "graphs"
     os.makedirs(save_folder, exist_ok=True)
