@@ -34,33 +34,32 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 
     list<uint32_t> test_values;
     uint32_t test_range = min((workgroups * workgroup_size > 1024) ? 1024 : workgroup_size * workgroups, 
-                    (test_name == "local_atomic_fa_relaxed") ? 256 : workgroup_size * workgroups);
+                    (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") ? 256 : workgroup_size * workgroups);
 
-    for (uint32_t i = 1; i <= test_range; i *= 2) {
+    for (uint32_t i = 1; i <= test_range; i *= 2) { //4096 for global random
         test_values.push_back(i);
     }
     uint32_t loading_counter = 0;
     for (uint32_t contention : test_values) {
+        if (thread_dist == "random_access" && contention == 1) continue;
 
-        int random_access_status = 0;
         for (uint32_t padding : test_values) {
             
             if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
-            
-            if  (thread_dist == "random_access") {
-                if (!random_access_status) random_access_status = 1;
-                else continue;
-            }
+
 
             benchmark_data << "(" << contention << ", " << padding << ", ";
 
             uint64_t global_work_size = workgroup_size * workgroups;
             uint64_t size = ((global_work_size) * padding) / contention;
+            uint64_t random_access_size = contention * padding;
 
-            Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? contention : size) * sizeof(uint32_t), true);
+            Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? random_access_size : size) * sizeof(uint32_t), true);
 
-            Buffer random_access_buf = Buffer(device, sizeof(uint32_t), true);
-            random_access_buf.store(&contention, sizeof(uint32_t));
+            Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
+            size_buf.store(&contention, sizeof(uint32_t));
+            Buffer padding_buf = Buffer(device, sizeof(uint32_t), true);
+            padding_buf.store(&padding, sizeof(uint32_t));
 
             Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
 
@@ -115,10 +114,13 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                 vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
 
                 if (thread_dist == "branched") buffers.emplace_back(branch_buf);
-                else if (thread_dist == "random_access") buffers.emplace_back(random_access_buf);
+                else if (thread_dist == "random_access") {
+                    buffers.emplace_back(size_buf);
+                    buffers.emplace_back(padding_buf);
+                }
                 
                 if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(out_buf);
-                else if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
+                else if (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") buffers.emplace_back(local_strat_buf);
                 else if (test_name == "mixed_operations") buffers.emplace_back(mixed_buf);
 
                 Program rmw_program = Program(device, spv_code, buffers);
@@ -141,7 +143,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             }
 
             result_buf.teardown();
-            random_access_buf.teardown();
+            size_buf.teardown();
+            padding_buf.teardown();
             rmw_iters_buf.teardown();
             branch_buf.teardown();
             mixed_buf.teardown();
@@ -152,8 +155,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             loading_counter++;
             if (thread_dist == "random_access") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
-                << int(((float)loading_counter / (test_values.size())) * 100.0) << "% ";
-            } else if (test_name == "local_atomic_fa_relaxed") {
+                << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
+            } else if (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") {
                 cout << "\r" << thread_dist << ", " << test_name << ": "
                 << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "% ";
             } else {
@@ -176,7 +179,7 @@ extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> 
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
             vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
-            if (rmw == "local_atomic_fa_relaxed") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
+            if (rmw == "local_atomic_fa_relaxed" && strategy != "random_access") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
             else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
             cout << endl;
         }
