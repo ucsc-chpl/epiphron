@@ -32,11 +32,11 @@ def generate_heatmap(coordinates, title, filename):
     elif 'Ryzen' in device_name:
         contention = 5
         padding = 5
-    data_array = np.zeros((padding, contention-2)) #-1 for random
+    data_array = np.zeros((padding, contention-3)) #-1 for random
 
     # Assign values to the data array based on coordinates
     for x, y, value, _ in coordinates:
-        x_index = int(np.log2(x)-2)
+        x_index = int(np.log2(x)-3)
         y_index = int(np.log2(y))
         print(x_index, y_index)
         data_array[y_index, x_index] = value
@@ -80,7 +80,7 @@ def generate_heatmap(coordinates, title, filename):
         plt.ylabel("Padding", fontsize=20, labelpad=5)
 
     #  # Set the tick locations and labels for the x-axis
-    x_ticks = [2 ** i for i in range(2, contention)]
+    x_ticks = [2 ** i for i in range(3, contention)]
     ax.set_xticks(np.arange(len(x_ticks)))
     ax.set_xticklabels(x_ticks, fontsize=10)
     if 'local' in title_information[1]:

@@ -42,7 +42,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
     uint32_t bucket_size = 256;
     for (uint32_t thread_count : test_values) {
 
-        if (thread_dist == "random_access" && thread_count < (workgroup_size/bucket_size)) continue;
+        if (thread_dist == "random_access" && thread_count <= (workgroup_size/bucket_size)) continue;
 
         for (uint32_t padding : test_values) {
             
