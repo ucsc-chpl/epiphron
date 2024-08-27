@@ -28,16 +28,17 @@ def generate_heatmap(coordinates, title, filename):
     contention = grid_scale
     padding = grid_scale
     if 'local' in title_information[1]:
-        padding = 4 # scaling to 8
+        padding = 6 # scaling to 8
     elif 'Ryzen' in device_name:
         contention = 5
         padding = 5
-    data_array = np.zeros((padding, contention-1)) #-1 for random
+    data_array = np.zeros((padding, contention-2)) #-1 for random
 
     # Assign values to the data array based on coordinates
     for x, y, value, _ in coordinates:
-        x_index = int(np.log2(x)-1)
+        x_index = int(np.log2(x)-2)
         y_index = int(np.log2(y))
+        print(x_index, y_index)
         data_array[y_index, x_index] = value
 
     # Get the minimum and maximum values from the data_array
@@ -73,13 +74,13 @@ def generate_heatmap(coordinates, title, filename):
         heatmap = ax.imshow(data_array, cmap=cmap, norm=norm)
 
     # Set appropriate axis labels
-    plt.xlabel("Atomics", fontsize=20, labelpad=10)
+    plt.xlabel("Threads", fontsize=20, labelpad=10)
     plt.ylabel("Padding", fontsize=20, labelpad=-6)
     if 'local' in title_information[1]:
         plt.ylabel("Padding", fontsize=20, labelpad=5)
 
     #  # Set the tick locations and labels for the x-axis
-    x_ticks = [2 ** i for i in range(1, contention)]
+    x_ticks = [2 ** i for i in range(2, contention)]
     ax.set_xticks(np.arange(len(x_ticks)))
     ax.set_xticklabels(x_ticks, fontsize=10)
     if 'local' in title_information[1]:

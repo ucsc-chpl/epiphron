@@ -33,75 +33,53 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                   << ", " << thread_dist << ": " << test_name << endl;
 
     list<uint32_t> test_values;
-    uint32_t test_range = min((workgroups * workgroup_size > 1024) ? 1024 : workgroup_size * workgroups, 
-                    (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") ? 256 : workgroup_size * workgroups);
+    uint32_t test_range = workgroup_size;
 
     for (uint32_t i = 1; i <= test_range; i *= 2) { //4096 for global random
         test_values.push_back(i);
     }
     uint32_t loading_counter = 0;
-    for (uint32_t contention : test_values) {
-        if (thread_dist == "random_access" && contention == 1) continue;
+    uint32_t bucket_size = 256;
+    for (uint32_t thread_count : test_values) {
+
+        if (thread_dist == "random_access" && thread_count < (workgroup_size/bucket_size)) continue;
 
         for (uint32_t padding : test_values) {
             
-            if (test_name == "local_atomic_fa_relaxed" && padding > 8) continue;
+            if (test_name == "local_atomic_fa_relaxed" && padding > 32) continue;
 
 
-            benchmark_data << "(" << contention << ", " << padding << ", ";
+            benchmark_data << "(" << thread_count << ", " << padding << ", ";
 
             uint64_t global_work_size = workgroup_size * workgroups;
-            uint64_t size = ((global_work_size) * padding) / contention;
-            uint64_t random_access_size = contention * padding;
+            //thread_count + ((thread_count * padding) / bucket_size); (global histogram)
+            uint64_t random_access_size = bucket_size * padding;
+            uint32_t atomics = (thread_count * bucket_size) / workgroup_size;
 
-            Buffer result_buf = Buffer(device, (thread_dist == "random_access" ? random_access_size : size) * sizeof(uint32_t), true);
-
+            Buffer result_buf = Buffer(device, random_access_size * sizeof(uint32_t), true);
             Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
-            size_buf.store(&contention, sizeof(uint32_t));
-            Buffer padding_buf = Buffer(device, sizeof(uint32_t), true);
-            padding_buf.store(&padding, sizeof(uint32_t));
-
+            
+            size_buf.store(&atomics, sizeof(uint32_t));
+            // atomics * padding test
+            //Buffer padding_buf = Buffer(device, sizeof(uint32_t), true);
+            //padding_buf.store(&padding, sizeof(uint32_t));
             Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
-
-            Buffer out_buf = Buffer(device, global_work_size * sizeof(uint32_t), true);
             Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
             Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
-            Buffer branch_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
-            Buffer mixed_buf = Buffer(device, global_work_size * sizeof(uint32_t), true);
 
             random_device rd;
             mt19937 gen(rd()); 
-            uniform_int_distribution<> distribution(0, contention-1);
+            uniform_int_distribution<> distribution(0, atomics-1);
 
-            vector<uint32_t> mixed_buf_host, branch_buf_host, strat_buf_host, local_strat_buf_host; 
+            vector<uint32_t> strat_buf_host, local_strat_buf_host; 
             for (int i = 0; i < global_work_size; i++) {
-                mixed_buf_host.push_back((i % 32) < 16); // Thread instruction masking
-                if (thread_dist == "branched") {    
-                    branch_buf_host.push_back((i % 2));
-                    strat_buf_host.push_back((i / contention) * padding);
-                } else if (thread_dist == "cross_warp") {
-                    strat_buf_host.push_back((i * padding) % size);
-                } else if (thread_dist == "contiguous_access") {
-                    strat_buf_host.push_back((i / contention) * padding);
-                } else if (thread_dist == "random_access") {
-                    strat_buf_host.push_back(distribution(gen));
-                }
+                strat_buf_host.push_back(distribution(gen));
             }
             for (int i = 0; i < workgroup_size; i++) {
-                if (thread_dist == "branched") {    
-                    local_strat_buf_host.push_back((i / contention) * padding);
-                } else if (thread_dist == "cross_warp") {
-                    local_strat_buf_host.push_back((i * padding) % ((workgroup_size * padding) / contention));
-                } else if (thread_dist == "contiguous_access") {
-                    local_strat_buf_host.push_back((i / contention) * padding);
-                } else if (thread_dist == "random_access") {
-                    local_strat_buf_host.push_back(distribution(gen));
-                }
+                local_strat_buf_host.push_back((i / thread_count) * ((padding-1)+atomics));
+                // global histogram
+                //local_strat_buf_host.push_back((i / thread_count) * (padding+bucket_size));
             }
-            if (mixed_buf_host.size() > 0)
-                mixed_buf.store(mixed_buf_host.data(), mixed_buf_host.size() * sizeof(uint32_t));
-            if (branch_buf_host.size() > 0)
-                branch_buf.store(branch_buf_host.data(), branch_buf_host.size() * sizeof(uint32_t));
             if (strat_buf_host.size() > 0)
                 strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
             if (local_strat_buf_host.size() > 0)
@@ -113,15 +91,13 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
                 rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
                 vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
 
-                if (thread_dist == "branched") buffers.emplace_back(branch_buf);
-                else if (thread_dist == "random_access") {
+                if (thread_dist == "random_access") {
                     buffers.emplace_back(size_buf);
-                    buffers.emplace_back(padding_buf);
+                    // atomics * padding test
+                    //buffers.emplace_back(padding_buf);
+                    buffers.emplace_back(local_strat_buf);
                 }
-                
-                if (test_name == "atomic_fa_relaxed_out") buffers.emplace_back(out_buf);
-                else if (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") buffers.emplace_back(local_strat_buf);
-                else if (test_name == "mixed_operations") buffers.emplace_back(mixed_buf);
+                //if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
 
                 Program rmw_program = Program(device, spv_code, buffers);
                 rmw_program.setWorkgroups(workgroups);
@@ -144,13 +120,10 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 
             result_buf.teardown();
             size_buf.teardown();
-            padding_buf.teardown();
+            //padding_buf.teardown();
             rmw_iters_buf.teardown();
-            branch_buf.teardown();
-            mixed_buf.teardown();
             local_strat_buf.teardown();
             strat_buf.teardown();
-            out_buf.teardown();
 
             loading_counter++;
             if (thread_dist == "random_access") {
@@ -179,8 +152,7 @@ extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> 
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
             vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
-            if (rmw == "local_atomic_fa_relaxed" && strategy != "random_access") rmw_microbenchmark(device, workgroups, 256, test_iters, strategy, spv_code, rmw);
-            else rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
+            rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
             cout << endl;
         }
     }
@@ -199,21 +171,11 @@ int main() {
         device.teardown();
     }
     vector<string> thread_dist_options = {
-        "branched", 
-        "cross_warp",
-        "contiguous_access",
         "random_access"
     };
     vector<string> atomic_rmw_options = {
         "atomic_fa_relaxed",
-        "atomic_fa_relaxed_out",
         "local_atomic_fa_relaxed",
-        "atomic_cas_succeed_store",
-        "atomic_cas_succeed_no_store",
-        "atomic_fetch_min",
-        "atomic_fetch_max",
-        "atomic_exchange",
-        "mixed_operations"
     };
 
     auto selected_devices = select_configurations(device_options, "Select devices:");
