@@ -39,105 +39,92 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
         test_values.push_back(i);
     }
     uint32_t loading_counter = 0;
-    uint32_t bucket_size = 256;
+
     for (uint32_t thread_count : test_values) {
 
-        if (thread_dist == "random_access" && thread_count <= (workgroup_size/bucket_size)) continue;
+        if (thread_dist == "random_access" && thread_count < 32) continue;
 
-        for (uint32_t padding : test_values) {
-            
-            if (test_name == "local_atomic_fa_relaxed" && padding > 32) continue;
+        benchmark_data << "(" << thread_count << ", ";
 
+        uint64_t global_work_size = workgroup_size * workgroups;
+        uint64_t random_access_size = 256; //global bucket // local: bucket_size * (workgroup_size/thread_count)
 
-            benchmark_data << "(" << thread_count << ", " << padding << ", ";
+        Buffer result_buf = Buffer(device, random_access_size * sizeof(uint32_t), true);
+        Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
+        size_buf.store(&random_access_size, sizeof(uint32_t));
+        Buffer thread_buf = Buffer(device, sizeof(uint32_t), true);
+        thread_buf.store(&thread_count, sizeof(uint32_t));
+        Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
+        Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
+        Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
 
-            uint64_t global_work_size = workgroup_size * workgroups;
-            //thread_count + ((thread_count * padding) / bucket_size); (global histogram)
-            uint64_t random_access_size = bucket_size * padding;
-            uint32_t atomics = (thread_count * bucket_size) / workgroup_size;
+        random_device rd;
+        mt19937 gen(rd()); 
+        uniform_int_distribution<> distribution(0, random_access_size-1);
 
-            Buffer result_buf = Buffer(device, random_access_size * sizeof(uint32_t), true);
-            Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
-            
-            size_buf.store(&atomics, sizeof(uint32_t));
-            // atomics * padding test
-            //Buffer padding_buf = Buffer(device, sizeof(uint32_t), true);
-            //padding_buf.store(&padding, sizeof(uint32_t));
-            Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
-            Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
-            Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
-
-            random_device rd;
-            mt19937 gen(rd()); 
-            uniform_int_distribution<> distribution(0, atomics-1);
-
-            vector<uint32_t> strat_buf_host, local_strat_buf_host; 
-            for (int i = 0; i < global_work_size; i++) {
-                strat_buf_host.push_back(distribution(gen));
-            }
-            for (int i = 0; i < workgroup_size; i++) {
-                local_strat_buf_host.push_back((i / thread_count) * ((padding-1)+atomics));
-                // global histogram
-                //local_strat_buf_host.push_back((i / thread_count) * (padding+bucket_size));
-            }
-            if (strat_buf_host.size() > 0)
-                strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
-            if (local_strat_buf_host.size() > 0)
-                local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
-
-            uint32_t rmw_iters = 128;
-            while(1) {
-                result_buf.clear();
-                rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
-                vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
-
-                if (thread_dist == "random_access") {
-                    buffers.emplace_back(size_buf);
-                    // atomics * padding test
-                    //buffers.emplace_back(padding_buf);
-                    buffers.emplace_back(local_strat_buf);
-                }
-                //if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
-
-                Program rmw_program = Program(device, spv_code, buffers);
-                rmw_program.setWorkgroups(workgroups);
-                rmw_program.setWorkgroupSize(workgroup_size);
-                rmw_program.initialize("rmw_test");
-                float total_rate = 0.0;
-                float total_duration = 0.0;
-                for (int i = 1; i <= test_iters; i++) {
-                    auto kernel_time = rmw_program.runWithDispatchTiming();
-                    total_duration += (kernel_time / (double) 1000.0);
-                    total_rate += ((static_cast<float>(rmw_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
-                }
-                rmw_program.teardown();
-                if ((total_duration/test_iters) > 500000.0) {
-                    benchmark_data << total_rate/test_iters << ")" << endl;
-                    break;
-                }
-                rmw_iters *= 2;
-            }
-
-            result_buf.teardown();
-            size_buf.teardown();
-            //padding_buf.teardown();
-            rmw_iters_buf.teardown();
-            local_strat_buf.teardown();
-            strat_buf.teardown();
-
-            loading_counter++;
-            if (thread_dist == "random_access") {
-                cout << "\r" << thread_dist << ", " << test_name << ": "
-                << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
-            } else if (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") {
-                cout << "\r" << thread_dist << ", " << test_name << ": "
-                << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "% ";
-            } else {
-                cout << "\r" << thread_dist << ", " << test_name << ": " 
-                << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
-            }
-            cout.flush();
+        vector<uint32_t> strat_buf_host, local_strat_buf_host; 
+        for (int i = 0; i < global_work_size; i++) {
+            strat_buf_host.push_back(distribution(gen));
         }
+        for (int i = 0; i < workgroup_size; i++) {
+            local_strat_buf_host.push_back((i / thread_count) * (random_access_size));
+        }
+        if (strat_buf_host.size() > 0)
+            strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
+        if (local_strat_buf_host.size() > 0)
+            local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+
+        uint32_t rmw_iters = 128;
+        while(1) {
+            result_buf.clear();
+            rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
+            vector<Buffer> buffers = {result_buf, rmw_iters_buf, strat_buf};
+
+            if (thread_dist == "random_access") {
+                buffers.emplace_back(size_buf);
+                buffers.emplace_back(local_strat_buf);
+                buffers.emplace_back(thread_buf);
+            }
+            //if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
+
+            Program rmw_program = Program(device, spv_code, buffers);
+            rmw_program.setWorkgroups(workgroups);
+            rmw_program.setWorkgroupSize(workgroup_size);
+            rmw_program.initialize("rmw_test");
+            float total_rate = 0.0;
+            float total_duration = 0.0;
+            for (int i = 1; i <= test_iters; i++) {
+                auto kernel_time = rmw_program.runWithDispatchTiming();
+                total_duration += (kernel_time / (double) 1000.0);
+                total_rate += ((static_cast<float>(rmw_iters) * workgroup_size * workgroups) / (kernel_time / (double) 1000.0)); 
+            }
+            rmw_program.teardown();
+            if ((total_duration/test_iters) > 500000.0) {
+                benchmark_data << total_rate/test_iters << ")" << endl;
+                break;
+            }
+            rmw_iters *= 2;
+        }
+
+        result_buf.teardown();
+        rmw_iters_buf.teardown();
+        strat_buf.teardown();
+        size_buf.teardown();
+        local_strat_buf.teardown();
+        thread_buf.teardown();
+
+        loading_counter++;
+        if (thread_dist == "random_access") {
+            cout << "\r" << thread_dist << ", " << test_name << ": "
+            << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
+        } else if (test_name == "local_atomic_fa_relaxed" && thread_dist != "random_access") {
+            cout << "\r" << thread_dist << ", " << test_name << ": "
+            << int(((float)loading_counter / (test_values.size() * 4)) * 100.0) << "% ";
+        } else {
+            cout << "\r" << thread_dist << ", " << test_name << ": " 
+            << int(((float)loading_counter / (test_values.size() * test_values.size())) * 100.0) << "% ";
+        }
+        cout.flush();
     }
 
     benchmark_data.close();
