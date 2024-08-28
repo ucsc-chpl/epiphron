@@ -84,8 +84,6 @@ def main():
 
         save_folder = "graphs"
         os.makedirs(save_folder, exist_ok=True)
-
-        plt.show()
         
         svgfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".svg")
         pngfilename = os.path.join(save_folder, filename.removesuffix(".txt") + ".png")
