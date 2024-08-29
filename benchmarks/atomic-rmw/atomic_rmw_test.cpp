@@ -19,7 +19,7 @@ using easyvk::Buffer;
 using easyvk::Program;
 using easyvk::vkDeviceType;
 
-extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, uint32_t workgroup_size, uint32_t test_iters, 
+extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_size, uint32_t test_iters, 
                                     string thread_dist, vector<uint32_t> spv_code, string test_name) {
     
     ofstream benchmark_data; 
@@ -28,46 +28,62 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
         cerr << "Failed to open the output file." << endl;
         return;
     }
-    
-    benchmark_data << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName
-                  << ", " << thread_dist << ": " << test_name << endl;
+
+    // benchmark_data << to_string(workgroup_size) + "," + to_string(workgroups) + ":" + device.properties.deviceName
+    //               << ", " << thread_dist << ": " << test_name << endl;
 
     list<uint32_t> test_values;
-    uint32_t test_range = workgroup_size;
-
-    for (uint32_t i = 1; i <= test_range; i *= 2) { //4096 for global random
-        test_values.push_back(i);
+    uint32_t max_local_memory_size = device.properties.limits.maxComputeSharedMemorySize / 4; //using buffers of uint32_t
+    uint32_t bucket_size = 256; //global bucket // local: bucket_size * (workgroup_size/thread_count)
+    for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
+        if (((workgroup_size/i)*bucket_size) <= max_local_memory_size) {
+            test_values.push_back(i);
+        }
     }
     uint32_t loading_counter = 0;
-
+    uint32_t occupancy_test_iters = 16;
+    uint32_t occupancy_rmw_iters = 1024;
+    uint32_t occupancy_upper_bound = 256;
+    vector<uint32_t> occupancy_spv_code = get_spv_code("occupancy_discovery.cinit");
+    uint32_t prev_local_memory_size = 8192;
     for (uint32_t thread_count : test_values) {
+              
+        //modify local mem 
+        // occupancy discovery
+        uint32_t curr_local_memory_size = (workgroup_size/thread_count)*bucket_size;
 
-        if (thread_dist == "random_access" && thread_count < 32) continue;
+        modifyLocalMemSize(occupancy_spv_code, curr_local_memory_size, prev_local_memory_size);
+        
+        uint32_t workgroups = occupancy_discovery(device, workgroup_size, occupancy_upper_bound, get_spv_code("occupancy_discovery.cinit"), 
+                                                  occupancy_test_iters, occupancy_rmw_iters, bucket_size, thread_count);
+        
+        benchmark_data << "(" << thread_count << ", " << (workgroup_size/thread_count)*bucket_size << ", " << workgroups << ", ";
+    
+        modifyLocalMemSize(spv_code, curr_local_memory_size, prev_local_memory_size);
 
-        benchmark_data << "(" << thread_count << ", ";
+        prev_local_memory_size = curr_local_memory_size;
 
         uint64_t global_work_size = workgroup_size * workgroups;
-        uint64_t random_access_size = 256; //global bucket // local: bucket_size * (workgroup_size/thread_count)
 
-        Buffer result_buf = Buffer(device, random_access_size * sizeof(uint32_t), true);
+        Buffer result_buf = Buffer(device, bucket_size * sizeof(uint32_t), true);
         Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
-        size_buf.store(&random_access_size, sizeof(uint32_t));
-        Buffer thread_buf = Buffer(device, sizeof(uint32_t), true);
-        thread_buf.store(&thread_count, sizeof(uint32_t));
+        size_buf.store(&bucket_size, sizeof(uint32_t));
+        //Buffer thread_buf = Buffer(device, sizeof(uint32_t), true);
+        //thread_buf.store(&thread_count, sizeof(uint32_t));
         Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
         Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
         Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
 
         random_device rd;
         mt19937 gen(rd()); 
-        uniform_int_distribution<> distribution(0, random_access_size-1);
+        uniform_int_distribution<> distribution(0, bucket_size-1);
 
         vector<uint32_t> strat_buf_host, local_strat_buf_host; 
         for (int i = 0; i < global_work_size; i++) {
             strat_buf_host.push_back(distribution(gen));
         }
         for (int i = 0; i < workgroup_size; i++) {
-            local_strat_buf_host.push_back((i / thread_count) * (random_access_size));
+            local_strat_buf_host.push_back((i / thread_count) * (bucket_size));
         }
         if (strat_buf_host.size() > 0)
             strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
@@ -83,7 +99,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
             if (thread_dist == "random_access") {
                 buffers.emplace_back(size_buf);
                 buffers.emplace_back(local_strat_buf);
-                buffers.emplace_back(thread_buf);
+                //buffers.emplace_back(thread_buf);
             }
             //if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
 
@@ -111,7 +127,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
         strat_buf.teardown();
         size_buf.teardown();
         local_strat_buf.teardown();
-        thread_buf.teardown();
+        //thread_buf.teardown();
 
         loading_counter++;
         if (thread_dist == "random_access") {
@@ -134,12 +150,11 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroups, u
 extern "C" void rmw_benchmark_suite(easyvk::Device device, const vector<string> &thread_dist, const vector<string> &atomic_rmws) {  
     uint32_t test_iters = 3;
     uint32_t workgroup_size = device.properties.limits.maxComputeWorkGroupInvocations;
-    uint32_t workgroups = occupancy_discovery(device, workgroup_size, 256, get_spv_code("occupancy_discovery.cinit"), 16, 1024);
-    cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
+    // cout << "Workgroups: (" << workgroup_size << ", 1) x " << workgroups << endl;
     for (const string& strategy : thread_dist) {
         for (const string& rmw : atomic_rmws) {
             vector<uint32_t> spv_code = get_spv_code(strategy + "/" + rmw + ".cinit");
-            rmw_microbenchmark(device, workgroups, workgroup_size, test_iters, strategy, spv_code, rmw);
+            rmw_microbenchmark(device, workgroup_size, test_iters, strategy, spv_code, rmw);
             cout << endl;
         }
     }

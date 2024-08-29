@@ -1,5 +1,6 @@
 #define PARTICIPATING 1
 #define NON_PARTICIPATING 0
+#define LOCAL_MEM_SIZE 8192
 
 
 // Ticket lock 
@@ -41,9 +42,11 @@ static uint get_occupancy(__global uint *count,
     return PARTICIPATING;
 }
 
-__kernel void occupancy_discovery(__global atomic_uint* res,
-                                  __global uint* iters,
-                                  __global uint* indexes,
+__kernel void occupancy_discovery(__global atomic_uint* global_histogram, 
+                                  __global uint* iters, 
+                                  __global uint* seed,
+                                  __global uint* bucket_size, 
+                                  __global uint* local_mapping,
                                   __global uint *count, 
                                   __global uint *poll_open,
                                   __global uint *M,
@@ -54,8 +57,22 @@ __kernel void occupancy_discovery(__global atomic_uint* res,
     if (get_local_id(0) == 0) {
         get_occupancy(count, poll_open, M, now_serving, next_ticket);
     }
-    for (uint i = 0; i < *iters; i++) {
-        atomic_fetch_add_explicit(&res[indexes[get_global_id(0)]], 1, memory_order_relaxed);
+
+    __local atomic_uint local_histogram[LOCAL_MEM_SIZE];
+
+    uint prev = seed[get_global_id(0)];
+    uint index = 0, offset = 0;
+    uint atomic_location = local_mapping[get_local_id(0)];
+
+    for (uint i = 0; i < (*iters); i++) {
+        index = ((prev * 8121) + 28411) % (*bucket_size);
+        offset = atomic_location + index;
+        atomic_fetch_add_explicit(&local_histogram[offset], 1, memory_order_relaxed);
+        prev = index;
+    }
+    
+    if (get_local_id(0) == 0) {
+        atomic_fetch_add_explicit(&global_histogram[index], atomic_load(&local_histogram[offset]), memory_order_relaxed);
     }
 
     return;

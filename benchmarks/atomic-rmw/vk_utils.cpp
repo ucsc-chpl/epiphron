@@ -1,6 +1,7 @@
 #include "vk_utils.h"
 #include <iostream>
 #include <sstream>
+#include <random>
 using namespace std;
 using easyvk::Instance;
 using easyvk::Device;
@@ -29,17 +30,40 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
     return error_count;
 }
 
-uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, uint32_t test_iters, uint32_t rmw_iters) {
+uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, 
+                             uint32_t test_iters, uint32_t rmw_iters, uint32_t bucket_size, uint32_t thread_count) {
         int maxOccupancyBound = 0;
         for (int i = 0; i < test_iters; i++) {
-            Buffer result_buf = Buffer(device, workgroup_size * workgroups * sizeof(uint32_t), true);
+
+            Buffer result_buf = Buffer(device, bucket_size * sizeof(uint32_t), true);
             result_buf.clear();
+
+            Buffer size_buf = Buffer(device, sizeof(uint32_t), true);
+            size_buf.store(&bucket_size, sizeof(uint32_t));
+
             Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
             rmw_iters_buf.store(&rmw_iters, sizeof(uint32_t));
-            Buffer strat_buf = Buffer(device, workgroup_size * workgroups * sizeof(uint32_t));
-            vector<uint32_t> strat_buf_host; 
-            for (int i = 0; i < workgroup_size * workgroups; i += 1) strat_buf_host.push_back(i);
+            
+            uint64_t global_work_size = workgroup_size * workgroups;
+            Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
+            Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true);
+
+            random_device rd;
+            mt19937 gen(rd()); 
+            uniform_int_distribution<> distribution(0, bucket_size-1);
+
+            vector<uint32_t> strat_buf_host, local_strat_buf_host; 
+            for (int i = 0; i < global_work_size; i++) {
+                strat_buf_host.push_back(distribution(gen));
+            }
+            for (int i = 0; i < workgroup_size; i++) {
+                local_strat_buf_host.push_back((i / thread_count) * (bucket_size));
+            }
+
             strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
+            local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+            
+            
             Buffer count_buf = Buffer(device, sizeof(uint32_t), true);
             uint32_t zero = 0; // need to figure out the right way to pass an rvalue to a void* but i'm lazy
             count_buf.store(&zero, sizeof(uint32_t));
@@ -51,7 +75,7 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             now_serving_buf.store(&zero, sizeof(uint32_t));
             Buffer next_ticket_buf = Buffer(device, sizeof(uint32_t), true);
             next_ticket_buf.store(&zero, sizeof(uint32_t));
-            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf,
+            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf,
                                                         count_buf, 
                                                         poll_open_buf,
                                                         M_buf,
@@ -71,6 +95,8 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             result_buf.teardown();
             rmw_iters_buf.teardown();
             strat_buf.teardown();
+            size_buf.teardown();
+            local_strat_buf.teardown();
             count_buf.teardown();
             poll_open_buf.teardown();
             M_buf.teardown();
@@ -78,6 +104,43 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             now_serving_buf.teardown();
         }
         return (uint32_t) maxOccupancyBound;
+}
+
+void modifyLocalMemSize(vector<uint32_t>& spirv, uint32_t newValue, const uint32_t LOCAL_MEM_SIZE) {
+    if(spirv.size() < 5) {
+        cerr << "Invalid SPIR-V binary." << endl;
+        return;
+    }
+    if(spirv[0] != 0x07230203) {
+        cerr << "Not a SPIR-V binary." << endl;
+        return;
+    }
+
+    // Iterate through SPIR-V instructions
+    // https://github.com/KhronosGroup/SPIRV-Guide/blob/master/chapters/parsing_instructions.md
+    size_t i = 5;  // skip SPIR-V header
+    while(i < spirv.size()) {
+        uint32_t instruction = spirv[i];
+        uint32_t length = instruction >> 16;
+        uint32_t opcode = instruction & 0x0ffffu;
+
+        // Opcode source: https://registry.khronos.org/SPIR-V/specs/unified1/SPIRV.html#OpConstant
+        if(opcode == 43) { // OpConstant
+            uint32_t resultType = spirv[i+1];
+            uint32_t resultId = spirv[i+2];
+            uint32_t constantValue = spirv[i+3];
+
+            // This is a simplistic check
+            // Doesn't verify the type and name (through debug info)
+            if(constantValue == LOCAL_MEM_SIZE) {
+                spirv[i+3] = newValue;
+                return;
+            }
+        }
+        i += length; // move to next instruction
+    }
+
+    cerr << "Did not modify any instructions when parsing the SPIR-V module!\n";
 }
 
 vector<int> select_configurations(vector<string> options, string prompt) {
