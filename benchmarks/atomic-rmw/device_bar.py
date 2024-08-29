@@ -65,6 +65,3 @@ for rect, label in zip(rects, labels):
 
 plt.savefig('graphs/throughput-multipliers.png', bbox_inches='tight')
 plt.savefig('graphs/throughput-multipliers.svg', format='svg', bbox_inches='tight')
-
-plt.show()
-
