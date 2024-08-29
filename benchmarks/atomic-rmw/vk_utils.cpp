@@ -31,7 +31,7 @@ uint32_t validate_output(easyvk::Buffer resultBuf, uint32_t rmw_iters, uint32_t 
 }
 
 uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uint32_t workgroups, vector<uint32_t> spv_code, 
-                             uint32_t test_iters, uint32_t rmw_iters, uint32_t bucket_size, uint32_t thread_count) {
+                             uint32_t test_iters, uint32_t rmw_iters, uint32_t bucket_size, uint32_t thread_count, uint32_t local_mem) {
         int maxOccupancyBound = 0;
         for (int i = 0; i < test_iters; i++) {
 
@@ -47,6 +47,9 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             uint64_t global_work_size = workgroup_size * workgroups;
             Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
             Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true);
+
+            Buffer thread_buf = Buffer(device, sizeof(uint32_t), true);
+            thread_buf.store(&thread_count, sizeof(uint32_t));
 
             random_device rd;
             mt19937 gen(rd()); 
@@ -75,12 +78,15 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             now_serving_buf.store(&zero, sizeof(uint32_t));
             Buffer next_ticket_buf = Buffer(device, sizeof(uint32_t), true);
             next_ticket_buf.store(&zero, sizeof(uint32_t));
-            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf,
+            Buffer local_mem_buf = Buffer(device, sizeof(uint32_t), true);
+            local_mem_buf.store(&local_mem, sizeof(uint32_t));
+            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf, thread_buf,
                                                         count_buf, 
                                                         poll_open_buf,
                                                         M_buf,
                                                         now_serving_buf,
-                                                        next_ticket_buf};
+                                                        next_ticket_buf,
+                                                        local_mem_buf};
             auto program = Program(device, spv_code, kernelInputs);
             program.setWorkgroups(workgroups);
             program.setWorkgroupSize(workgroup_size);
@@ -97,6 +103,7 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             strat_buf.teardown();
             size_buf.teardown();
             local_strat_buf.teardown();
+            thread_buf.teardown();
             count_buf.teardown();
             poll_open_buf.teardown();
             M_buf.teardown();

@@ -43,7 +43,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
     uint32_t loading_counter = 0;
     uint32_t occupancy_test_iters = 16;
     uint32_t occupancy_rmw_iters = 1024;
-    uint32_t occupancy_upper_bound = 256;
+    uint32_t occupancy_upper_bound = 3072;
     vector<uint32_t> occupancy_spv_code = get_spv_code("occupancy_discovery.cinit");
     uint32_t prev_local_memory_size = 8192;
     for (uint32_t thread_count : test_values) {
@@ -54,8 +54,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
 
         modifyLocalMemSize(occupancy_spv_code, curr_local_memory_size, prev_local_memory_size);
         
-        uint32_t workgroups = occupancy_discovery(device, workgroup_size, occupancy_upper_bound, get_spv_code("occupancy_discovery.cinit"), 
-                                                  occupancy_test_iters, occupancy_rmw_iters, bucket_size, thread_count);
+        uint32_t workgroups = occupancy_discovery(device, workgroup_size, occupancy_upper_bound, occupancy_spv_code, 
+                                                  occupancy_test_iters, occupancy_rmw_iters, bucket_size, thread_count, curr_local_memory_size);
         
         benchmark_data << "(" << thread_count << ", " << (workgroup_size/thread_count)*bucket_size << ", " << workgroups << ", ";
     
