@@ -47,7 +47,6 @@ __kernel void occupancy_discovery(__global atomic_uint* global_histogram,
                                   __global uint* seed,
                                   __global uint* bucket_size, 
                                   __global uint* local_mapping,
-                                  __global uint* thread_count,
                                   __global uint *count, 
                                   __global uint *poll_open,
                                   __global uint *M,
@@ -71,12 +70,12 @@ __kernel void occupancy_discovery(__global atomic_uint* global_histogram,
         atomic_fetch_add_explicit(&local_histogram[offset], 1, memory_order_relaxed);
         prev = index;
     }
-    work_group_barrier(CLK_LOCAL_MEM_FENCE);
-    for (uint i = 0; i < (*bucket_size); i++) {
-        if (get_local_id(0) % (*thread_count) == 0) {
-            atomic_fetch_add_explicit(&global_histogram[i], atomic_load(&local_histogram[atomic_location+i]), memory_order_relaxed);
-        }
+
+    if (get_local_id(0) == 0) {
+        atomic_fetch_add_explicit(&global_histogram[index], atomic_load(&local_histogram[offset]), memory_order_relaxed);
     }
+
+    // atomic_fetch_add(&local_histogram[get_global_id(0) % LOCAL_MEM_SIZE], 1);
 
     return;
 }

@@ -80,7 +80,7 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             next_ticket_buf.store(&zero, sizeof(uint32_t));
             Buffer local_mem_buf = Buffer(device, sizeof(uint32_t), true);
             local_mem_buf.store(&local_mem, sizeof(uint32_t));
-            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf, thread_buf,
+            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf, //thread_buf,
                                                         count_buf, 
                                                         poll_open_buf,
                                                         M_buf,
