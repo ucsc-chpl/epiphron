@@ -2,10 +2,17 @@
 #include "easyvk.h"
 
 namespace histogram {
+    enum BinType {
+        UINT8 = 0,
+        UINT16 = 1,
+        UINT32 = 2,
+        UINT64 = 3
+    };
+
     class Histogram {
         public:
-            Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins);
-            std::vector<uint32_t> bins;
+            Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins, enum BinType binType = UINT16);
+            std::vector<uint64_t> bins;
     };
 }
 

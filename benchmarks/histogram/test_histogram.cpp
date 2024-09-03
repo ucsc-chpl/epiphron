@@ -73,7 +73,6 @@ int main() {
     }
     data.resize(data_size / sizeof(uint32_t));
 
-
     printf("Select input data type:\n");
     printf("0 - 'random'\n");
     printf("1 - 'ascending'\n");
@@ -110,13 +109,18 @@ int main() {
 
         histogram::Histogram histogram = histogram::Histogram(device, data.data(), data.size(), b);
 
+        uint64_t sum = 0;
         printf("Bins: [");
         for (int i = 0; i < b; i++) {
-            printf("%d", histogram.bins[i]);
+            printf("%llu", histogram.bins[i]);
             if (i < b - 1)
                 printf(", ");
+            sum += histogram.bins[i];
         }
         printf("]\n");
+        printf("Sum: %llu\n", sum);
+        printf("Data size: %zu\n", data.size());
+
     }
 
     device.teardown();
