@@ -11,7 +11,7 @@ namespace histogram {
 
     class Histogram {
         public:
-            Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins, enum BinType binType = UINT16);
+            Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins, enum BinType binType = UINT32);
             std::vector<uint64_t> bins;
     };
 }

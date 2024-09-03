@@ -97,14 +97,19 @@ int main() {
             break;
     }
 
-    printf("Enter maximum number of bins (will sweep upwards in powers of 2, starting from 1):\n");
+    printf("Enter maximum number of bins (will sweep upwards in powers of 2, starting from 4):\n");
     printf("Bins: ");
     std::string bins_s;
     getline(std::cin, bins_s);
     printf("\n");
     int bins = stoi(bins_s);
 
-    for (int b = 1; b <= bins; b <<= 1) {
+    printf("Data: ");
+    for (uint32_t d : data)
+        printf("%u, ", d);
+    printf("\n");
+
+    for (int b = 4; b <= bins; b <<= 1) {
         printf("Starting histogram with %d bins...\n", b);
 
         histogram::Histogram histogram = histogram::Histogram(device, data.data(), data.size(), b);

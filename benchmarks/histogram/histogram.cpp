@@ -76,26 +76,33 @@ namespace histogram {
             d_data.store(data, data_size);
         }
         
-        std::vector<uint32_t> spvCode = read_spirv("histogram.spv");
+        std::vector<uint32_t> spvCode;
         size_t binType_size = 0;
+        uint32_t virt_bins = num_bins; // Number of "virtual" bins, for <32-bit bins packed into 32-bit atomics
         switch (binType) {
             case UINT8:
                 binType_size = sizeof(uint8_t);
+                virt_bins /= 4;
+                spvCode = read_spirv("shaders/histogram-uint8.spv");
                 break;
             case UINT16:
                 binType_size = sizeof(uint16_t);
+                virt_bins /= 2;
+                spvCode = read_spirv("shaders/histogram-uint16.spv");
                 break;
             case UINT32:
                 binType_size = sizeof(uint32_t);
+                spvCode = read_spirv("shaders/histogram-uint32.spv");
                 break;
             case UINT64:
                 binType_size = sizeof(uint64_t);
+                spvCode = read_spirv("shaders/histogram-uint64.spv");
                 break;
         }
-        easyvk::Buffer d_bins = easyvk::Buffer(device, num_bins * binType_size, true);
+        easyvk::Buffer d_bins = easyvk::Buffer(device, virt_bins * binType_size, true);
         if (num_bins * binType_size > device.properties.limits.maxComputeSharedMemorySize)
             fprintf(stderr, "WARNING: Allocated local memory size '%zu' bytes exceeds maximum size of '%u' bytes.\n", num_bins * binType_size, device.properties.limits.maxComputeSharedMemorySize);
-        modifyLocalMemSize(spvCode, num_bins * binType_size);
+        modifyLocalMemSize(spvCode, virt_bins * binType_size);
         d_bins.fill(0);
 
         easyvk::Buffer d_meta = easyvk::Buffer(device, 2 * sizeof(uint32_t), true);
@@ -112,11 +119,26 @@ namespace histogram {
         float runtime = program.runWithDispatchTiming();
         printf("Ran in %f ms.\n", runtime / 1000000.0);
 
-        std::vector<BIN_TYPE> _bins(num_bins);
-        d_bins.load(_bins.data(), num_bins * sizeof(BIN_TYPE));
+        void* _bins = (void*)malloc(virt_bins * binType_size);
+        d_bins.load(_bins, virt_bins * binType_size);
         bins.resize(num_bins);
-        for (int i = 0; i < _bins.size(); i++)
-            bins[i] = _bins[i];
+        for (int i = 0; i < num_bins; i++) {
+            switch(binType) {
+                case UINT8:
+                    bins[i] = ((uint8_t*)_bins)[i];
+                    break;
+                case UINT16:
+                    bins[i] = ((uint16_t*)_bins)[i];
+                    break;
+                case UINT32:
+                    bins[i] = ((uint32_t*)_bins)[i];
+                    break;
+                case UINT64:
+                    bins[i] = ((uint64_t*)_bins)[i];
+                    break;
+            }
+        }
+        free(_bins);
 
         program.teardown();
         d_data.teardown();  

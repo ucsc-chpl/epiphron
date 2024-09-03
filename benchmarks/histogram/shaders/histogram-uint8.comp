@@ -1,0 +1,34 @@
+#version 440
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int32 : require
+
+#define LOCAL_MEM_SIZE 1024
+
+layout(std430, binding = 0) buffer buf0 { uint32_t data[]; };
+layout(std430, binding = 1) buffer buf1 { uint32_t bins[]; };
+layout(std430, binding = 2) buffer buf2 {
+    uint32_t len;
+    uint32_t num_bins;
+};
+shared uint32_t local_bins[LOCAL_MEM_SIZE];
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    // Compute local histograms in shared memory
+    if (index > len)
+        return;
+    uint bin = data[index] % num_bins;
+    uint bin_index = bin / 4;
+    uint bin_offset = bin % 4;
+    atomicAdd(local_bins[bin_index], 1 << ((8 - bin_offset) * 8));
+
+    barrier();
+
+    // Update global histogram with single thread
+    if (gl_LocalInvocationID.x == 0) {
+        for (uint i = 0; i < num_bins; i++) {
+            atomicAdd(bins[i], local_bins[i]);
+        }
+    }
+}
