@@ -99,7 +99,7 @@ namespace histogram {
         program.setWorkgroups(data_size / 32);
         program.initialize("main");
         float runtime = program.runWithDispatchTiming();
-        printf("Ran in %f ms.\n", runtime / 1000.0);
+        printf("Ran in %f ms.\n", runtime / 1000000.0);
 
         std::vector<BIN_TYPE> _bins(num_bins);
         d_bins.load(_bins.data(), num_bins * sizeof(BIN_TYPE));

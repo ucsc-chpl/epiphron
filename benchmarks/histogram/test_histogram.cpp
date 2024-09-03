@@ -98,7 +98,7 @@ int main() {
             break;
     }
 
-    printf("Enter number of bins:\n");
+    printf("Enter maximum number of bins (will sweep upwards in powers of 2, starting from 1):\n");
     printf("Bins: ");
     std::string bins_s;
     getline(std::cin, bins_s);
@@ -113,7 +113,7 @@ int main() {
         printf("Bins: [");
         for (int i = 0; i < b; i++) {
             printf("%d", histogram.bins[i]);
-            if (i < bins - 1)
+            if (i < b - 1)
                 printf(", ");
         }
         printf("]\n");
