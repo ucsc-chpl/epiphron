@@ -1,0 +1,23 @@
+#version 440
+#extension GL_EXT_shader_explicit_arithmetic_types_int32 : require
+
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) buffer buf0 { uint32_t data[]; };
+layout(std430, binding = 1) buffer buf1 { uint32_t bins[]; };
+layout(std430, binding = 2) buffer buf2 {
+    uint32_t len;
+    uint32_t num_bins;
+};
+
+void main() {
+    uint chunk_size = max(uint(ceil(float(len) / float(gl_WorkGroupSize.x) / float(gl_NumWorkGroups.x))), 1);
+    uint start = gl_GlobalInvocationID.x * chunk_size;
+    uint end = start + chunk_size;
+    for (uint i = start; i < end; i++) {
+        if (i >= len)
+            break;
+
+        uint bin = data[i] % num_bins;
+        atomicAdd(bins[bin], 1);
+    }
+}

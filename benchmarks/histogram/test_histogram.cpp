@@ -12,7 +12,6 @@ using namespace easyvk;
 using histogram::Histogram;
 
 int main() {
-    std::srand(std::time(nullptr));
     Instance instance = Instance(USE_VALIDATION_LAYERS);
     std::vector<VkPhysicalDevice> devices = instance.physicalDevices();
     printf("Testing GPU histogram...\n\n");
@@ -68,15 +67,17 @@ int main() {
             data_size = 1llu << 31;
             break;
         case 4:
-            data_size = (1llu << 32) - 1;
+            data_size = (1llu << 32) - (1llu << 20); // minus one MB to avoid overflow
             break;
     }
-    data.resize(data_size / sizeof(uint32_t));
-
+    uint32_t data_len = data_size / sizeof(uint32_t);
+    data.resize(data_len);
+    
     printf("Select input data type:\n");
     printf("0 - 'random'\n");
     printf("1 - 'ascending'\n");
     printf("2 - 'zeroes'\n");
+    printf("3 - 'seeded-random'\n");
     printf("Enter data type number: ");
 
     std::string dt_s;
@@ -87,6 +88,7 @@ int main() {
     printf("Generating data...\n\n");
     switch (dt) {
         case 0:
+            srand(time(NULL));
             std::generate(data.begin(), data.end(), std::rand);
             break;
         case 1:
@@ -95,38 +97,58 @@ int main() {
         case 2:
             std::fill(data.begin(), data.end(), 0);
             break;
+        case 3:
+            srand(0);
+            std::generate(data.begin(), data.end(), std::rand);
+            break;
     }
 
-    printf("Enter maximum number of bins (will sweep upwards in powers of 2, starting from 4):\n");
-    printf("Bins: ");
-    std::string bins_s;
-    getline(std::cin, bins_s);
+    printf("Select histogram implementation:\n");
+    printf("0 - 'CPU'\n");
+    printf("1 - 'GLOBAL'\n");
+    printf("2 - 'SHARED_UINT8'\n");
+    printf("3 - 'SHARED_UINT16'\n");
+    printf("4 - 'SHARED_UINT32'\n");
+    printf("5 - 'SHARED_UINT64'\n");
+    printf("6 - 'MULTILEVEL'\n");
+    printf("Enter implementation: ");
+
+    std::string impl_s;
+    getline(std::cin, impl_s);
     printf("\n");
-    int bins = stoi(bins_s);
+    histogram::Implementation impl = static_cast<histogram::Implementation>(stoi(impl_s));
 
-    printf("Data: ");
-    for (uint32_t d : data)
-        printf("%u, ", d);
-    printf("\n");
+    int num_bins = 256;
 
-    for (int b = 4; b <= bins; b <<= 1) {
-        printf("Starting histogram with %d bins...\n", b);
+    printf("Starting histogram with %d bins...\n", num_bins);
 
-        histogram::Histogram histogram = histogram::Histogram(device, data.data(), data.size(), b);
+    histogram::Histogram histogram = histogram::Histogram(device, data.data(), data.size(), num_bins, impl);
 
-        uint64_t sum = 0;
-        printf("Bins: [");
-        for (int i = 0; i < b; i++) {
-            printf("%llu", histogram.bins[i]);
-            if (i < b - 1)
-                printf(", ");
-            sum += histogram.bins[i];
-        }
-        printf("]\n");
-        printf("Sum: %llu\n", sum);
-        printf("Data size: %zu\n", data.size());
-
+    uint64_t sum = 0;
+    printf("Bins: [");
+    for (int i = 0; i < num_bins; i++) {
+        printf("%llu", histogram.bins[i]);
+        if (i < num_bins - 1)
+            printf(", ");
+        sum += histogram.bins[i];
     }
+    printf("]\n");
+    printf("Sum: %llu\n", sum);
+    printf("Data size: %zu\n", data.size());
+
+    if (impl != histogram::Implementation::CPU) {
+        printf("Checking histogram against CPU histogram...\n");
+        histogram::Histogram cpu_histogram = histogram::Histogram(device, data.data(), data.size(), num_bins, histogram::Implementation::CPU);
+        bool err = false;
+        for (int i = 0; i < num_bins; i++)
+            if (histogram.bins[i] != cpu_histogram.bins[i]) 
+                err = true;
+        if (err)
+            printf("Error in histogram calculation!\n");
+        else
+            printf("Histogram bins are correct!\n");
+    }
+
 
     device.teardown();
     instance.teardown();

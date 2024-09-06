@@ -10,7 +10,7 @@ namespace histogram {
         // variable name, so ensure the constant you want to modify doens't conflict with
         // any previously defined constant (i.e ensure that the first #define constant w/ value
         // 1024 is at the top of the OpenCL file).
-        const uint32_t LOCAL_MEM_SIZE = 1024; 
+        const uint32_t LOCAL_MEM_SIZE = 8192; 
         if(spirv.size() < 5) {
             std::cerr << "Invalid SPIR-V binary." << std::endl;
             return;
@@ -42,10 +42,6 @@ namespace histogram {
         }
         std::cerr << "Did not modify any instructions when parsing the SPIR-V module!\n";
     }
-
-    void modifyBinType(std::vector<uint32_t>& spirv, enum BinType binType) {
-
-    }
     
     std::vector<uint32_t> read_spirv(const char *filename) {
         auto fin = std::ifstream(filename, std::ios::binary | std::ios::ate);
@@ -61,7 +57,29 @@ namespace histogram {
         return ret;
     }
 
-    Histogram::Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins, enum BinType binType) {
+    float cpuHistogram(std::vector<uint64_t>& bins, uint32_t* data, uint64_t len, uint32_t num_bins) {
+        auto start = std::chrono::high_resolution_clock::now();
+        bins.resize(num_bins);
+        for (uint64_t i = 0; i < len; i++) {
+            uint32_t bin = data[i] % num_bins;
+            bins[bin]++;
+        }
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<float, std::milli> runtime = (end - start);
+        return runtime.count();
+    }
+
+    Histogram::Histogram(easyvk::Device device, uint32_t* data, uint64_t len, uint32_t num_bins, enum Implementation impl) {
+        if (impl == CPU) {
+            float runtime = cpuHistogram(bins, data, len, num_bins);
+            printf("Ran in %f ms.\n", runtime);
+            return;
+        }
+        if (impl == MULTILEVEL) {
+            fprintf(stderr, "Not implemented!\n");
+            return;
+        }
+
         easyvk::Buffer d_data = easyvk::Buffer(device, len * sizeof(uint32_t), true);
         uint64_t data_size = len * sizeof(uint32_t);
         // If data > 1GB, copy it over in 1GB intervals so as to not overflow memory with staging buffer size
@@ -78,34 +96,45 @@ namespace histogram {
         
         std::vector<uint32_t> spvCode;
         size_t binType_size = 0;
-        uint32_t virt_bins = num_bins; // Number of "virtual" bins, for <32-bit bins packed into 32-bit atomics
-        switch (binType) {
-            case UINT8:
-                binType_size = sizeof(uint8_t);
-                virt_bins /= 4;
-                spvCode = read_spirv("shaders/histogram-uint8.spv");
-                break;
-            case UINT16:
-                binType_size = sizeof(uint16_t);
-                virt_bins /= 2;
-                spvCode = read_spirv("shaders/histogram-uint16.spv");
-                break;
-            case UINT32:
+        uint32_t phys_bins = num_bins; // Number of "physical" bins, for <32-bit bins packed into 32-bit atomics
+        switch (impl) {
+            case GLOBAL:
                 binType_size = sizeof(uint32_t);
-                spvCode = read_spirv("shaders/histogram-uint32.spv");
+                spvCode = read_spirv("shaders/histogram-global.spv");
                 break;
-            case UINT64:
+            case SHARED_UINT8:
+                binType_size = sizeof(uint8_t);
+                phys_bins /= 4;
+                spvCode = read_spirv("shaders/histogram-shared-uint8.spv");
+                break;
+            case SHARED_UINT16:
+                binType_size = sizeof(uint16_t);
+                phys_bins /= 2;
+                spvCode = read_spirv("shaders/histogram-shared-uint16.spv");
+                break;
+            case SHARED_UINT32:
+                binType_size = sizeof(uint32_t);
+                spvCode = read_spirv("shaders/histogram-shared-uint32.spv");
+                break;
+            case SHARED_UINT64:
                 binType_size = sizeof(uint64_t);
-                spvCode = read_spirv("shaders/histogram-uint64.spv");
+                spvCode = read_spirv("shaders/histogram-shared-uint64.spv");
+                break;
+            case MULTILEVEL:
+                binType_size = sizeof(uint32_t);
+                spvCode = read_spirv("shaders/histogram-multilevel.spv");
                 break;
         }
-        easyvk::Buffer d_bins = easyvk::Buffer(device, virt_bins * binType_size, true);
-        if (num_bins * binType_size > device.properties.limits.maxComputeSharedMemorySize)
-            fprintf(stderr, "WARNING: Allocated local memory size '%zu' bytes exceeds maximum size of '%u' bytes.\n", num_bins * binType_size, device.properties.limits.maxComputeSharedMemorySize);
-        modifyLocalMemSize(spvCode, virt_bins * binType_size);
+        easyvk::Buffer d_bins = easyvk::Buffer(device, phys_bins * binType_size, true);
         d_bins.fill(0);
 
-        easyvk::Buffer d_meta = easyvk::Buffer(device, 2 * sizeof(uint32_t), true);
+        if (impl == SHARED_UINT8 || impl == SHARED_UINT16 || impl == SHARED_UINT32 || impl == SHARED_UINT64) {
+            if (phys_bins * binType_size > device.properties.limits.maxComputeSharedMemorySize)
+                fprintf(stderr, "WARNING: Allocated local memory size '%zu' bytes exceeds maximum size of '%u' bytes.\n", phys_bins * binType_size, device.properties.limits.maxComputeSharedMemorySize);
+            modifyLocalMemSize(spvCode, phys_bins * binType_size);
+        }
+
+        easyvk::Buffer d_meta = easyvk::Buffer(device, 3 * sizeof(uint32_t), true);
         d_meta.store(&len, sizeof(uint32_t));
         d_meta.store(&num_bins, sizeof(uint32_t), 0, sizeof(uint32_t));
 
@@ -113,28 +142,34 @@ namespace histogram {
         easyvk::Program program = easyvk::Program(device, spvCode, bufs);
         
         // Still need to do occupancy discovery here
-        program.setWorkgroupSize(32);
-        program.setWorkgroups(data_size / 32);
+        // (glsl requires workgroup size to bet set in-shader, need to write code to modify spv if it needs to be changed at runtime)
+        program.setWorkgroups(10);
         program.initialize("main");
         float runtime = program.runWithDispatchTiming();
         printf("Ran in %f ms.\n", runtime / 1000000.0);
 
-        void* _bins = (void*)malloc(virt_bins * binType_size);
-        d_bins.load(_bins, virt_bins * binType_size);
+        void* _bins = (void*)malloc(phys_bins * binType_size);
+        d_bins.load(_bins, phys_bins * binType_size);
         bins.resize(num_bins);
         for (int i = 0; i < num_bins; i++) {
-            switch(binType) {
-                case UINT8:
-                    bins[i] = ((uint8_t*)_bins)[i];
-                    break;
-                case UINT16:
-                    bins[i] = ((uint16_t*)_bins)[i];
-                    break;
-                case UINT32:
+            switch(impl) {
+                case GLOBAL:
                     bins[i] = ((uint32_t*)_bins)[i];
                     break;
-                case UINT64:
+                case SHARED_UINT8:
+                    bins[i] = ((uint8_t*)_bins)[i];
+                    break;
+                case SHARED_UINT16:
+                    bins[i] = ((uint16_t*)_bins)[i];
+                    break;
+                case SHARED_UINT32:
+                    bins[i] = ((uint32_t*)_bins)[i];
+                    break;
+                case SHARED_UINT64:
                     bins[i] = ((uint64_t*)_bins)[i];
+                    break;
+                case MULTILEVEL:
+                    bins[i] = ((uint32_t*)_bins)[i];
                     break;
             }
         }

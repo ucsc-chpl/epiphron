@@ -1,7 +1,7 @@
 CXXFLAGS=-std=c++17
 VULKAN_INCLUDES=-L$(VULKAN_SDK)/Lib -lvulkan
 RUN_EXT=run
-SHADERS=shaders/histogram-uint8.spv shaders/histogram-uint16.spv shaders/histogram-uint32.spv shaders/histogram-uint64.spv
+SHADERS=shaders/histogram-global.spv shaders/histogram-shared-uint8.spv shaders/histogram-shared-uint16.spv shaders/histogram-shared-uint32.spv shaders/histogram-shared-uint64.spv shaders/histogram-multilevel.spv
 ifeq ($(OS), Windows_NT)
 	RUN_EXT = exe
 endif
