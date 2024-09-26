@@ -51,20 +51,27 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             Buffer thread_buf = Buffer(device, sizeof(uint32_t), true);
             thread_buf.store(&thread_count, sizeof(uint32_t));
 
+            Buffer branch_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
+
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, bucket_size-1);
 
-            vector<uint32_t> strat_buf_host, local_strat_buf_host; 
+            vector<uint32_t> strat_buf_host, local_strat_buf_host, branch_buf_host;
             for (int i = 0; i < global_work_size; i++) {
                 strat_buf_host.push_back(distribution(gen));
+                branch_buf_host.push_back((i % 2));
             }
             for (int i = 0; i < workgroup_size; i++) {
                 local_strat_buf_host.push_back((i / thread_count) * (bucket_size));
             }
 
-            strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
-            local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+            if (strat_buf_host.size() > 0)
+                strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
+            if (local_strat_buf_host.size() > 0)
+                local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+            if (branch_buf_host.size() > 0)
+                branch_buf.store(branch_buf_host.data(), branch_buf_host.size() * sizeof(uint32_t));
             
             
             Buffer count_buf = Buffer(device, sizeof(uint32_t), true);
@@ -80,7 +87,7 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             next_ticket_buf.store(&zero, sizeof(uint32_t));
             Buffer local_mem_buf = Buffer(device, sizeof(uint32_t), true);
             local_mem_buf.store(&local_mem, sizeof(uint32_t));
-            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf, //thread_buf,
+            vector<Buffer> kernelInputs = {             result_buf, rmw_iters_buf, strat_buf, size_buf, local_strat_buf, branch_buf,//thread_buf,
                                                         count_buf, 
                                                         poll_open_buf,
                                                         M_buf,
@@ -104,6 +111,7 @@ uint32_t occupancy_discovery(easyvk::Device device, uint32_t workgroup_size, uin
             size_buf.teardown();
             local_strat_buf.teardown();
             thread_buf.teardown();
+            branch_buf.teardown();
             count_buf.teardown();
             poll_open_buf.teardown();
             M_buf.teardown();

@@ -35,7 +35,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
     //uint32_t bucket_size = 256; //global bucket // local: bucket_size * (workgroup_size/thread_count)
 
     // x 1 for uchar in res buf, then uchar type in kernel, change local mem / sizeof(uchar)
-    for (uint32_t bucket_size : {64, 128, 256, 512, 1024}) {
+    for (uint32_t bucket_size : {256}) {
         list<uint32_t> test_values;
         uint32_t max_local_memory_size = device.properties.limits.maxComputeSharedMemorySize / sizeof(uint32_t); //using buffers of uint32_t
         for (uint32_t i = 1; i <= workgroup_size; i *= 2) {
@@ -77,14 +77,16 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
             Buffer rmw_iters_buf = Buffer(device, sizeof(uint32_t), true);
             Buffer strat_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
             Buffer local_strat_buf = Buffer(device, workgroup_size * sizeof(uint32_t), true); 
+            Buffer branch_buf = Buffer(device, global_work_size * sizeof(uint32_t), true); 
 
             random_device rd;
             mt19937 gen(rd()); 
             uniform_int_distribution<> distribution(0, bucket_size-1);
 
-            vector<uint32_t> strat_buf_host, local_strat_buf_host; 
+            vector<uint32_t> strat_buf_host, local_strat_buf_host, branch_buf_host; 
             for (int i = 0; i < global_work_size; i++) {
                 strat_buf_host.push_back(distribution(gen));
+                branch_buf_host.push_back((i % 2));
             }
             for (int i = 0; i < workgroup_size; i++) {
                 local_strat_buf_host.push_back((i / thread_count) * (bucket_size));
@@ -93,6 +95,8 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
                 strat_buf.store(strat_buf_host.data(), strat_buf_host.size() * sizeof(uint32_t));
             if (local_strat_buf_host.size() > 0)
                 local_strat_buf.store(local_strat_buf_host.data(), local_strat_buf_host.size() * sizeof(uint32_t));
+            if (branch_buf_host.size() > 0)
+                branch_buf.store(branch_buf_host.data(), branch_buf_host.size() * sizeof(uint32_t));
 
             uint32_t rmw_iters = 128;
             while(1) {
@@ -104,6 +108,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
                     buffers.emplace_back(size_buf);
                     buffers.emplace_back(local_strat_buf);
                     //buffers.emplace_back(thread_buf);
+                    buffers.emplace_back(branch_buf);
                 }
                 //if (test_name == "local_atomic_fa_relaxed") buffers.emplace_back(local_strat_buf);
 
@@ -132,6 +137,7 @@ extern "C" void rmw_microbenchmark(easyvk::Device device, uint32_t workgroup_siz
             size_buf.teardown();
             local_strat_buf.teardown();
             //thread_buf.teardown();
+            branch_buf.teardown();
 
             loading_counter++;
             // if (thread_dist == "random_access") {

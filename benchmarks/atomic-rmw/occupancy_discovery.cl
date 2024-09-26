@@ -47,6 +47,7 @@ __kernel void occupancy_discovery(__global atomic_uint* global_histogram,
                                   __global uint* seed,
                                   __global uint* bucket_size, 
                                   __global uint* local_mapping,
+                                  __global uint* branch,
                                   __global uint *count, 
                                   __global uint *poll_open,
                                   __global uint *M,
@@ -67,7 +68,11 @@ __kernel void occupancy_discovery(__global atomic_uint* global_histogram,
     for (uint i = 0; i < (*iters); i++) {
         index = ((prev * 8121) + 28411) % (*bucket_size);
         offset = atomic_location + index;
-        atomic_fetch_add_explicit(&local_histogram[offset], 1, memory_order_relaxed);
+        if (branch[get_global_id(0)]) {
+            atomic_fetch_add_explicit(&local_histogram[offset], 1, memory_order_relaxed);
+        } else {
+            atomic_fetch_add_explicit(&local_histogram[offset], 1, memory_order_relaxed);
+        }
         prev = index;
     }
 

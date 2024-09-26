@@ -1,10 +1,10 @@
 #define LOCAL_MEM_SIZE 8192
 
-__kernel void rmw_test( __global atomic_uint* global_histogram, global uint* iters, 
+__kernel void rmw_test( __global atomic_ulong* global_histogram, global uint* iters, 
                         global uint* seed, global uint* bucket_size, 
                         global uint* local_mapping) {
     
-    __local atomic_uint local_histogram[LOCAL_MEM_SIZE];
+    __local atomic_ulong local_histogram[LOCAL_MEM_SIZE];
 
     uint prev = seed[get_global_id(0)];
     uint index = 0, offset = 0;
@@ -21,3 +21,6 @@ __kernel void rmw_test( __global atomic_uint* global_histogram, global uint* ite
         atomic_fetch_add_explicit(&global_histogram[index], atomic_load(&local_histogram[offset]), memory_order_relaxed);
     }
 }
+
+//uint expected = atomic_load_explicit(&global_histogram[prev], memory_order_relaxed);
+//atomic_compare_exchange_strong_explicit(&local_histogram[offset], &expected, expected, memory_order_relaxed, memory_order_relaxed);
