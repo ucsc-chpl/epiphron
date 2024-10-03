@@ -18,9 +18,7 @@ ofstream benchmarkData;
 // attach policy to dispatch radix sort
 // how to dispatch a dispatch_t
 // bar graph, single value, other one line graph
-float benchmark_cub_radixsort(int* d_keys_in, int num_items) {
-
-    int *d_keys_out; 
+float benchmark_cub_radixsort(int* d_keys_in, int* d_keys_out, int num_items) {
 
     void* d_temp_storage = nullptr;
     size_t temp_storage_bytes = 0;
@@ -68,8 +66,8 @@ int main(int argc, char *argv[]) {
         // Host input vector
         int* h_in;
 
-        // Device input vector
-        int* d_in;
+        // Device input/output vector
+        int *d_in, *d_out;
 
         //Size, in bytes, of input size
         size_t input_size = num_items * sizeof(int);
@@ -79,6 +77,7 @@ int main(int argc, char *argv[]) {
 
         // Allocate memory for vector on GPU
         cudaMalloc(&d_in, input_size);
+        cudaMalloc(&d_out, input_size);
 
         // Initialize vectors on host
         for (int i = 0; i < num_items; i++) h_in[i] = rand() % 100; // seed this
@@ -90,7 +89,7 @@ int main(int argc, char *argv[]) {
 
         // Run benchmark
         //float onesweep_res = benchmark_cub_onesweep(d_in, num_items);
-        float radixsort_res = benchmark_cub_radixsort(d_in, num_items);
+        float radixsort_res = benchmark_cub_radixsort(d_in, d_out, num_items);
 
         benchmarkData << radixsort_res << ")" << endl;
 
