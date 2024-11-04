@@ -35,7 +35,6 @@ int main(int argc, char *argv[]) {
         uint32_t num_trials = 3;
 
         //Timing
-        float kernel_time = 0.0;
         float cub_time = 0.0;
         
         // Host input vector
@@ -55,10 +54,6 @@ int main(int argc, char *argv[]) {
         cudaMalloc((void**)&d_in, input_size);
         cudaMalloc((void**)&d_out, input_size);
 
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
         void* d_temp_storage = nullptr;
         size_t temp_storage_bytes = 0;
 
@@ -75,22 +70,17 @@ int main(int argc, char *argv[]) {
             // Copy host vectors to device
             cudaMemcpy(d_in, h_in, input_size, cudaMemcpyHostToDevice);
 
-            cudaEventRecord(start, 0);
+            chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
             cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items);
-            cudaEventRecord(stop, 0);
+            cudaDeviceSynchronize();
+            chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-            cudaEventSynchronize(stop);
-
-            cudaEventElapsedTime(&kernel_time, start, stop);
-
-            cub_time += kernel_time;
+            cub_time += (static_cast<double>(std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count()) * std::pow(10, -3));
 
         }
         benchmarkData << (num_items / ((cub_time/num_trials) / 1000.0f)) * 1e-6 << ")" << endl;
 
         // Release device and host memory
-        cudaEventDestroy(start);
-	    cudaEventDestroy(stop);
         cudaFree(d_in);
         cudaFree(d_out);
         free(h_in);
